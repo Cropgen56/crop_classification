@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+*.pyo
+.ipynb_checkpoints/
+.env
+.venv/
+venv/
+.DS_Store
+*.log
+
+# project outputs
+/data/processed/*
+/data/labels/*
+
+# keep raw files tracked if needed
+# uncomment if raw should be excluded from version control
+# /data/raw/

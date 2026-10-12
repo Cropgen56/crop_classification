@@ -1,0 +1,35 @@
+crop_groups:
+  kharif:
+    - Paddy
+    - Jowar
+    - Bajra
+    - Maize
+    - Tur
+    - Groundnut
+    - Soybean
+    - Cotton
+
+  rabi:
+    - Wheat
+    - Gram
+    - Rapeseed
+    - Mustard
+    - Safflower
+
+  commercial:
+    - Sugarcane
+    - Onion
+    - Chilli
+    - Turmeric
+
+  perennial:
+    - Orange
+    - Banana
+    - Mango
+    - Sapota
+
+  other:
+    - Fallow
+    - Water
+    - Builtup
+    - Unknown
