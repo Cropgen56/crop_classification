@@ -192,7 +192,15 @@ def classify_village_request(
         )
         best = crop_candidates[0] if crop_candidates else None
         has_confident_match = bool(best and best["score"] >= MIN_TEMPORAL_MATCH_SCORE)
-        label = f"{best['crop']}-like temporal cluster" if has_confident_match else "unmatched temporal cluster"
+        if has_confident_match:
+            top_crops = [c["crop"].replace("_", " ").title() for c in crop_candidates[:2]]
+            if len(top_crops) > 1 and (crop_candidates[0]["score"] - crop_candidates[1]["score"]) < 0.03:
+                crop_label_text = f"{top_crops[0]} / {top_crops[1]}"
+            else:
+                crop_label_text = f"{top_crops[0]}-dominant"
+            label = f"Cluster {cluster_id} · {crop_label_text}"
+        else:
+            label = f"Cluster {cluster_id} · Unmatched"
         cluster_labels[cluster_id] = label
         cluster_summary.append({
             "cluster": cluster_id,
@@ -228,13 +236,25 @@ def classify_village_request(
         prediction["temporal_ranked_candidates"] = crop_candidates
         prediction["temporal_cluster_label"] = label
         prediction["satellite_source"] = profile["satellite"]["source"]
+
+        cluster_info = next((c for c in cluster_summary if c["cluster_id"] == cluster_id), None)
+        cluster_top_crop = (
+            cluster_info["crop_candidates"][0]["crop"]
+            if cluster_info and cluster_info.get("crop_candidates") and cluster_info["crop_candidates"][0]["score"] >= MIN_TEMPORAL_MATCH_SCORE
+            else None
+        )
         has_confident_match = bool(crop_candidates and crop_candidates[0]["score"] >= MIN_TEMPORAL_MATCH_SCORE)
         if has_confident_match:
             prediction["best_crop"] = crop_candidates[0]["crop"]
             prediction["best_score"] = crop_candidates[0]["score"]
+        elif cluster_top_crop:
+            prediction["best_crop"] = cluster_top_crop
+            prediction["best_score"] = round(cluster_info["crop_candidates"][0]["score"], 4)
         else:
             prediction["best_crop"] = "unknown"
             prediction["best_score"] = 0.0
+
+        candidates_to_use = crop_candidates[:3] if crop_candidates else (cluster_info.get("crop_candidates", [])[:3] if cluster_info else [])
         prediction["top_3_candidates"] = [
             {
                 "rank": rank,
@@ -243,7 +263,7 @@ def classify_village_request(
                 "season": next((season for season, crops in CROP_GROUPS.items() if candidate["crop"] in crops), "mixed"),
                 "evidence": candidate["evidence"],
             }
-            for rank, candidate in enumerate(crop_candidates[:3], start=1)
+            for rank, candidate in enumerate(candidates_to_use, start=1)
         ]
 
     satellite_field_count = len(satellite_profiles)

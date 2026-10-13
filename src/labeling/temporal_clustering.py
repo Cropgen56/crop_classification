@@ -22,7 +22,7 @@ CROP_GROUPS = {
 
 TEMPORAL_BANDS = ("ndvi", "ndre", "gndvi", "evi", "ndmi", "vv", "vh")
 EVIDENCE_INDICES = ("ndvi", "ndre", "gndvi")
-MIN_TEMPORAL_MATCH_SCORE = 0.5
+MIN_TEMPORAL_MATCH_SCORE = 0.10
 
 
 def _safe_numeric(value: Any, default: float = 0.0) -> float:
@@ -571,14 +571,23 @@ def rank_crops_for_temporal_series(
             coverage = min(1.0, best["matched_points"] / 6.0)
             raw_score = math.exp(-best["rmse"] / 0.15) * coverage
 
-            # ── Bayesian posterior = raw_score × district prior ───────────
+            # ── Bayesian posterior = raw_score × calibrated prior ──────────
             if district_priors is not None:
                 # Crops not in the table get the implausible floor (0.002)
                 prior = district_priors.get(crop, 0.002)
+                if prior < 0.05:
+                    # Implausible crop in this district (e.g. paddy in Amravati with prior ~0.0098)
+                    # Suppress strictly so out-of-region crops drop dramatically.
+                    posterior = raw_score * prior
+                else:
+                    # Plausible co-dominant district crops (e.g. soybean ~0.437, cotton ~0.309)
+                    # Mild Bayesian shrinkage so satellite curve fits are not overwhelmed by small acreage differences.
+                    max_prior = max((p for p in district_priors.values() if p is not None), default=1.0)
+                    prior_scaling = (prior / max_prior) ** 0.15
+                    posterior = raw_score * prior_scaling
             else:
                 prior = 1.0   # uniform prior → score unchanged
-
-            posterior = raw_score * prior
+                posterior = raw_score
 
             raw_candidates.append({
                 "crop": crop,

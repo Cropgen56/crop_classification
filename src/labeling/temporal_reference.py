@@ -191,6 +191,13 @@ def _load_crop_signature_reference_cached(csv_path_str: str | None = None) -> tu
         ]
     ].to_dict(orient="records")
 
+    # Exclude proximal leaf nitrogen trial observations (Raja et al. 2026, NDRE 0.03-0.13)
+    # which severely distort canopy-level Sentinel satellite temporal matching.
+    base_records = [
+        r for r in base_records
+        if not (r["crop"] == "cotton" and "Raja et al" in str(r.get("study", "")))
+    ]
+
     master_records = _load_master_crop_signatures() if csv_path_str is None else ()
     return tuple(base_records) + master_records
 

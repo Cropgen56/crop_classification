@@ -703,15 +703,20 @@
           legendList.innerHTML = '<li class="legend-item" style="color: var(--muted); font-style: italic;">Load a GeoJSON file and run classification to see cluster assignments.</li>';
           return;
         }
-        legendList.innerHTML = clusters.map((cluster) => `
-          <li class="legend-item">
-            <span style="display:flex; align-items:center; gap:10px;">
-              <span class="swatch" style="background:${getClusterColor(cluster.cluster_id ?? cluster.cluster)};"></span>
-              ${cluster.label || cluster.candidate_label || `Cluster ${cluster.cluster}`}
-            </span>
-            <span>${cluster.cluster_count} fields</span>
-          </li>
-        `).join('');
+        legendList.innerHTML = clusters.map((cluster) => {
+          const cid = Number(cluster.cluster_id ?? cluster.cluster);
+          const color = getClusterColor(cid);
+          const rawLabel = cluster.label || cluster.candidate_label || `Cluster ${cid}`;
+          return `
+            <li class="legend-item" style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+              <span style="display:flex; align-items:center; gap:8px;">
+                <span class="swatch" style="background:${color};"></span>
+                <span>${rawLabel}</span>
+              </span>
+              <span>${cluster.cluster_count} fields</span>
+            </li>
+          `;
+        }).join('');
       }
 
       function renderProgress(index = 0, detail = '') {
@@ -768,12 +773,17 @@
         const start = state.tablePage * state.tablePageSize;
         const visiblePredictions = predictions.slice(start, start + state.tablePageSize);
         tbody.innerHTML = visiblePredictions.map((record) => {
-          const candidates = (record.top_3_candidates || []).map((item) => `${item.crop} (${Number(item.score).toFixed(2)})`).join(' · ') || 'No matching reference evidence';
+          const cid = record.cluster_id;
+          const color = getClusterColor(cid);
+          const badge = cid !== null && cid !== undefined
+            ? `<span style="display:inline-block; padding: 2px 8px; border-radius: 999px; background: ${color}; color: #ffffff; font-weight: 600; font-size: 11px;">C${cid}</span>`
+            : '—';
+          const candidates = (record.top_3_candidates || []).map((item) => `${item.crop.replace(/_/g, ' ')} (${Number(item.score).toFixed(2)})`).join(' · ') || 'No matching reference evidence';
           return `
             <tr>
               <td>${record.field_id || 'field'}</td>
-              <td>${record.cluster_id === null || record.cluster_id === undefined ? '—' : `C${record.cluster_id}`}</td>
-              <td><span class="tag">${record.cluster_label || record.temporal_cluster_label || 'Satellite data unavailable'}</span></td>
+              <td>${badge}</td>
+              <td><span class="tag" style="border-left: 3px solid ${color};">${record.cluster_label || record.temporal_cluster_label || 'Satellite data unavailable'}</span></td>
               <td>${candidates}</td>
             </tr>
           `;
@@ -846,7 +856,7 @@
               const color = getClusterColor(prediction.cluster_id);
               return {
                 color: color,
-                weight: 2,
+                weight: 1.5,
                 opacity: 0.95,
                 fillColor: color,
                 fillOpacity: 0.55
@@ -854,7 +864,7 @@
             } else if (isClassified) {
               return {
                 color: '#7c8582',
-                weight: 2,
+                weight: 1.5,
                 opacity: 0.8,
                 fillColor: '#7c8582',
                 fillOpacity: 0.35,
@@ -863,7 +873,7 @@
             } else {
               return {
                 color: '#54d6ff',
-                weight: 2,
+                weight: 1.5,
                 opacity: 0.9,
                 fillColor: '#54d6ff',
                 fillOpacity: 0.35
@@ -877,15 +887,19 @@
             const prediction = assignments.get(fieldId);
 
             if (isClassified && prediction) {
+              const clusterColor = getClusterColor(prediction.cluster_id);
               const candidates = (prediction.top_3_candidates || []).map((item) =>
-                `<b>${item.crop}</b>: ${(Number(item.score) * 100).toFixed(1)}%`
+                `<b>${item.crop.replace(/_/g, ' ')}</b>: ${(Number(item.score) * 100).toFixed(1)}%`
               ).join('<br>') || 'No crop evidence';
 
               layerItem.bindPopup(`
-                <div style="font-family: inherit; font-size: 13px; line-height: 1.45; color: #111; min-width: 180px;">
+                <div style="font-family: inherit; font-size: 13px; line-height: 1.45; color: #111; min-width: 190px;">
                   <strong style="font-size: 14px; color: #081a21;">Field: ${fieldId}</strong><br>
-                  <span style="color: #2471a3; font-weight: 600;">Cluster ${prediction.cluster_id ?? '—'}:</span> ${prediction.cluster_label || prediction.temporal_cluster_label || 'Unassigned'}<br>
-                  <strong>Dominant Crop:</strong> ${prediction.best_crop || 'Unknown'} (${((prediction.best_score || 0) * 100).toFixed(1)}%)<br>
+                  <span style="display:inline-block; margin: 5px 0 7px; padding: 2px 8px; border-radius: 999px; background: ${clusterColor}; color: #ffffff; font-weight: 600; font-size: 11px;">
+                    Cluster ${prediction.cluster_id ?? '—'}
+                  </span>
+                  <div style="margin-bottom: 4px;"><b>Cluster Label:</b> ${prediction.cluster_label || prediction.temporal_cluster_label || 'Unassigned'}</div>
+                  <div style="margin-bottom: 4px;"><b>Dominant Crop:</b> ${prediction.best_crop ? prediction.best_crop.replace(/_/g, ' ') : 'Unknown'} (${((prediction.best_score || 0) * 100).toFixed(1)}%)</div>
                   <hr style="margin: 6px 0; border: none; border-top: 1px solid #ddd;">
                   <strong>Top Candidates:</strong><br>${candidates}
                 </div>
@@ -909,8 +923,10 @@
             layerItem.on({
               mouseover: (e) => {
                 const target = e.target;
-                target.setStyle({ weight: 3, opacity: 1, fillOpacity: 0.75 });
-                target.bringToFront();
+                target.setStyle({ weight: 3, color: '#ffffff', opacity: 1, fillOpacity: 0.85 });
+                if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+                  target.bringToFront();
+                }
               },
               mouseout: (e) => {
                 layer.resetStyle(e.target);
@@ -1032,8 +1048,8 @@
         if (!result) throw new Error('The classification stream ended without a result.');
         state.result = result;
 
-        drawFeatureCollection(payload, result);
         renderLegend(result);
+        drawFeatureCollection(payload, result);
         renderSummary(result);
         renderResultsTable(result);
         renderProgress(steps.length, 'Clusters, evidence labels, and map assignments are ready.');
