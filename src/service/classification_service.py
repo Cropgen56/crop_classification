@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from src.feature_engineering.sentinel_field_extractor import build_village_field_profiles
+from src.ingestion.village_geojson import normalize_village_fields
 from src.rules.village_classifier import classify_village
 
 REQUEST_VERSION = "0.7.0"
@@ -11,12 +13,16 @@ def classify_village_request(payload: dict[str, Any]) -> dict[str, Any]:
     village_id = payload.get("village_id", "unknown")
     fields = payload.get("fields", [])
 
-    if not isinstance(fields, list):
-        raise ValueError("The 'fields' value must be a list of field profile objects.")
+    if isinstance(payload, dict) and "fields" not in payload and "type" in payload and payload.get("type") == "FeatureCollection":
+        fields = payload
+
+    field_profiles = build_village_field_profiles(fields)
+    if not field_profiles:
+        field_profiles = normalize_village_fields(fields)
 
     village = {
         "village_id": village_id,
-        "fields": fields,
+        "fields": field_profiles,
     }
 
     result = classify_village(village)

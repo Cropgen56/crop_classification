@@ -1,222 +1,205 @@
-# Implementation Plan: Rule-Based Satellite Crop Classification for Maharashtra
+# Current Implementation Plan
 
-## 1. Project Overview
+## 1. Status summary
 
-Build a satellite-based crop classification system for Maharashtra using multi-temporal satellite imagery and an explainable, rule-based classification engine.
+This project is no longer a blank prototype. The repository already contains the working foundation for a clustering-first crop classification system for Maharashtra.
 
-The system will accept a village location or boundary, determine the analysis timestamp, retrieve historical satellite observations, calculate vegetation and radar features, analyse their temporal patterns, and predict the likely crop type.
+The current architecture is:
 
-The initial version will use deterministic rules rather than a trained machine learning model. The architecture should allow machine learning to be added later without rewriting the satellite data pipeline.
+- historical crop data audit and feature construction
+- crop-regime clustering from district-level seasonal patterns
+- agronomic label interpretation for clusters
+- crop rule scoring for likely crop matches
+- field/village aggregation into a service-ready output
+- a service contract that can be exposed via a FastAPI endpoint
 
-### Primary objectives
-
-- Classify agricultural land using satellite time-series data.
-- Distinguish seasonal cropping systems from perennial/orchard crops.
-- Determine likely Kharif, Rabi and Zaid cropping seasons.
-- Identify individual crops using temporal vegetation and radar patterns.
-- Support Maharashtra-specific crop calendars and local rules.
-- Return predictions with supporting evidence and uncertainty information.
-- Eventually map predictions and estimated crop area at village level.
-
-### Initial target crops
-
-**Seasonal crops:** paddy, jowar, bajra, maize, ragi, tur, moong, urad, groundnut, soybean, sunflower, sesame, nigerseed, cotton, wheat, barley, gram, masur, rapeseed and mustard, safflower and jute.
-
-**Perennial/orchard crops:** orange (Nagpur mandarin), sapota and other locally relevant orchard crops.
-
-**Additional classes:** fallow land, bare soil, water, built-up land, non-crop vegetation and unknown/insufficient evidence.
-
-The initial target list is a scope, not a claim that satellite time series can already distinguish every listed crop reliably.
+The main goal now is to connect this logic to real satellite inputs and a clean API layer without discarding the validated rule-based foundation.
 
 ---
 
-## 2. Proposed Technology Stack
+## 2. What is already implemented
 
-| Component | Recommended technology | Purpose |
-|---|---|---|
-| Satellite data access | Google Earth Engine (GEE) | Retrieve and process Sentinel imagery |
-| Optical satellite | Sentinel-2 Surface Reflectance Harmonized | Vegetation indices and spectral features |
-| Radar satellite | Sentinel-1 GRD | Radar backscatter and change features |
-| Additional radar | NISAR L-band/S-band products | Optional enhancement in a later phase |
-| Data processing | Python, NumPy, Pandas | Feature extraction and time-series analysis |
-| Geospatial processing | GeoPandas, Shapely, Rasterio | Field boundaries, geometries and raster operations |
-| Rule engine | Python configuration-driven rules | Hierarchical crop classification |
-| API | FastAPI | Expose classification functionality |
-| Storage | PostgreSQL + PostGIS | Store boundaries, observations, features and predictions |
-| Initial visualization | Leaflet or MapLibre | Display classified maps and time series |
-| Development environment | Jupyter notebooks | Explore satellite observations and calibrate rules |
+The repository currently includes the following working modules:
 
-Use the following Earth Engine collections as the initial data sources:
+- data preparation and feature engineering in [src/feature_engineering/build_region_features.py](src/feature_engineering/build_region_features.py)
+- cluster discovery in [src/clustering/cluster_regions.py](src/clustering/cluster_regions.py)
+- cluster interpretation and agronomic labeling in [src/labeling/cluster_labeling.py](src/labeling/cluster_labeling.py)
+- crop-rule scoring in [src/rules/rule_engine.py](src/rules/rule_engine.py)
+- field-level candidate ranking in [src/rules/field_candidate_generator.py](src/rules/field_candidate_generator.py)
+- village-level aggregation in [src/rules/village_classifier.py](src/rules/village_classifier.py)
+- service response contract in [src/service/classification_service.py](src/service/classification_service.py)
+- crop taxonomy in [src/config/crop_groups.yaml](src/config/crop_groups.yaml)
+- rule definitions in [src/config/crop_rules.yaml](src/config/crop_rules.yaml)
 
-- Sentinel-2: `COPERNICUS/S2_SR_HARMONIZED`
-- Sentinel-1: `COPERNICUS/S1_GRD`
-
-Official documentation: [Sentinel-2 Harmonized](https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S2_SR_HARMONIZED) and [Sentinel-1 GRD](https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S1_GRD).
-
-NISAR should initially be an optional data adapter. Its data access and processing requirements differ from those of the standard Earth Engine Sentinel collections. Check available acquisitions and product coverage through [NASA NISAR Data](https://science.nasa.gov/mission/nisar/data/) before integrating it.
+The project is currently validated around a clustering-first, explainable classification model rather than a pure deep-learning or direct pixel classifier.
 
 ---
 
-## 3. System Architecture
+## 3. Current project logic
 
-The application should follow this processing pipeline:
+### 3.1 Historical feature pipeline
 
-```text
-User Request
-    |
-    v
-Resolve Village Boundary / Field Polygons
-    |
-    v
-Determine As-of Timestamp
-    |
-    v
-Retrieve Satellite Observations
-    |
-    +----------------------+
-    |                      |
-    v                      v
-Sentinel-2 Optical     Sentinel-1 Radar
-    |                      |
-    v                      v
-Cloud Masking          Radar Filtering
-    |                      |
-    v                      v
-Vegetation Indices     Backscatter Features
-    |                      |
-    +-----------+----------+
-                |
-                v
-       Align Time Series
-                |
-                v
-      Extract Temporal Features
-                |
-                v
-       Data Quality Assessment
-                |
-                v
-       Land-Cover Classification
-                |
-                v
-   Seasonal vs Perennial Classification
-                |
-                v
-        Crop-Specific Rules
-                |
-                v
-   Prediction + Evidence + Uncertainty
-                |
-                v
-       Store Results / Display Map
-```
+The project starts from district and village agriculture data, then builds a region profile based on:
 
-Each component should be independently testable. Satellite retrieval must not be tightly coupled to the crop classification rules.
+- crop shares by season
+- perennial crop share
+- crop diversity and entropy
+- top crop dominance
+- seasonal balance
+- district-level crop distribution
+
+This produces the feature matrix used for regime discovery.
+
+### 3.2 Clustering layer
+
+The clustering step uses KMeans with StandardScaler and silhouette score selection to discover natural crop regimes. The output is a district-to-cluster assignment plus a cluster summary.
+
+### 3.3 Labeling layer
+
+Cluster summaries are interpreted with agronomic logic and crop-index references. This converts abstract clusters into meaningful labels such as seasonal paddy-heavy systems, mixed dryland systems, or perennial orchard patterns.
+
+### 3.4 Rule-based classification
+
+Once clusters are labeled, the system scores field or village profiles against crop rules. These rules include seasonal signal checks, crop-family logic, and weighting for important Maharashtra crops such as paddy, jowar, bajra, maize, wheat, gram, cotton, sugarcane, and orchard crops.
+
+### 3.5 Output contract
+
+The service layer packages the final output into a compact JSON response with:
+
+- village_id
+- dominant_crop
+- dominant_share
+- field_count
+- summary
+- top_candidates
+- crop_mix
+
+This contract is already suitable for a FastAPI endpoint and later frontend integration.
 
 ---
 
-## 4. Phase 1 — Input and Spatial Data Handling
+## 4. Real next phases
 
-### 4.1 Define the input contract
+### Phase 0: foundation and data audit
 
-The first version should accept:
+Status: complete.
 
-- `village_id`: official village identifier, when available.
-- `village_boundary`: GeoJSON polygon or a resolvable boundary reference.
-- `as_of_timestamp`: timestamp up to which observations may be used.
-- `analysis_year`: optional crop-year selection.
-- `field_ids`: optional list of field identifiers, when field boundaries are available.
+This included establishing the repo structure, cleaning the data-loading logic, fixing import paths, validating XLSX assumptions, and confirming the working environment under the agri Conda environment.
 
-Example request:
+### Phase 1: feature engineering and clustering
 
-```json
-{
-  "village_id": "example_village_001",
-  "village_boundary": null,
-  "as_of_timestamp": "2026-10-12T00:00:00+05:30",
-  "analysis_year": 2026
-}
-```
+Status: complete.
 
-The village identifier is illustrative, not an actual government identifier.
+This stage created the region feature table and used clustering to discover crop regimes.
 
-If a boundary is supplied, validate its geometry and coordinate reference system. If only a village identifier is supplied, resolve it using an approved administrative boundary dataset.
+### Phase 2: labeling, rules, and interpretation
 
-### 4.2 Timestamp handling
+Status: complete.
 
-Use the current timestamp by default, interpreted in the Asia/Kolkata timezone.
+This stage mapped clusters to agronomic crop systems and added a deterministic crop scoring engine.
 
-The timestamp controls which observations are eligible for the prediction. Convert dates consistently when querying satellite archives, and never use acquisitions later than the requested analysis date.
+### Phase 3: field and village classification
 
-For reproducibility, preserve the requested timestamp even when the latest available satellite observation is several days old.
+Status: complete.
 
-### 4.3 Field-level versus village-level processing
+The project now supports field-level candidate generation and village aggregate classification.
 
-**Prefer field-level polygons over a single village-average time series.**
+### Phase 4: service contract and API exposure
 
-A village can contain soybean, cotton, orchards, fallow land and other land uses simultaneously. Averaging NDVI across the entire village would hide these differences.
+Status: next.
 
-The preferred hierarchy is:
+The target here is a FastAPI application that wraps the current service contract and exposes endpoints such as:
 
-1. Classify individual field polygons when reliable boundaries are available.
-2. Otherwise, classify raster pixels or spatial units within the village.
-3. Aggregate predictions to village-level crop-area estimates.
+- health
+- classify-field
+- classify-village
+- optional batch classification for multiple fields
 
-If the only available input is a village polygon, the application must not automatically return a single crop label for the whole village.
+### Phase 5: real Sentinel feature extraction
 
-Deliverable: a validated boundary-processing module that returns a usable geometry for the satellite pipeline.
+Status: next.
+
+This is the true operational step: replace the current static profile logic with geospatial satellite extraction using Sentinel-1 and Sentinel-2.
+
+The system should:
+
+- accept a GeoJSON boundary or field polygon
+- use Earth Engine or a local processing pipeline to fetch S1/S2 data
+- calculate time-series vegetation and radar features
+- extract NDVI, NDRE, EVI, SAVI, and related indices when needed
+- derive seasonal metrics and crop signatures
+- combine these values with historical crop priors and rule scores
+
+### Phase 6: calibration and validation
+
+Status: pending.
+
+Use labeled field samples and known crop calendars to calibrate threshold values and tune the rule engine against actual observed patterns.
 
 ---
 
-## 5. Phase 2 — Satellite Data Retrieval
+## 5. Data and environment requirements
 
-### 5.1 Determine the analysis period
+### Required inputs
 
-Retrieve historical data appropriate to the current or requested analysis date.
+- Maharashtra historical crop data files
+- village or field boundary GeoJSON
+- known village IDs or district references
+- crop calendar and season references
+- sample labeled field data for validation
 
-The initial defaults should be configurable:
+### Satellite access
 
-- Seasonal crop analysis: current crop cycle plus sufficient preceding observations to establish the baseline.
-- Perennial/orchard analysis: multiple crop years wherever available.
-- Historical comparison: corresponding seasons from previous years.
-- Minimum observation count and maximum allowable data gaps: configurable by sensor and analysis mode.
+For live operational work, the project needs a valid Google Earth Engine or equivalent service account setup. The credential file should remain local and outside Git.
 
-Do not assume that the current calendar month alone identifies the growing season.
+Use the environment variable pattern:
 
-### 5.2 Sentinel-2 processing
+- GOOGLE_APPLICATION_CREDENTIALS = local path to the service account JSON
 
-Use harmonized surface-reflectance data.
+Keep the actual JSON file out of version control and store it only in a secure local environment or secret store.
 
-Processing steps:
+### Recommended data layers
 
-1. Filter imagery by village geometry and permitted date range.
-2. Mask clouds, cloud shadows and invalid pixels using the available scene-classification and quality information.
-3. Apply correct reflectance scale factors.
-4. Calculate the initial vegetation and land-surface indices.
-5. Retain the acquisition date and valid-pixel information.
-6. Build temporal composites.
+- Sentinel-2 SR Harmonized imagery
+- Sentinel-1 GRD backscatter
+- cloud mask and pixel-quality filters
+- 10- to 30-day aggregation windows depending on season and cloud state
+- seasonal crop calendars for Maharashtra
 
-The first version should use a regular 10-day composite cadence when observations support it. In heavily clouded periods, preserve gaps or use wider aggregation windows instead of manufacturing observations through aggressive interpolation.
+---
 
-### 5.3 Sentinel-1 processing
+## 6. Implementation priorities
 
-Filter Sentinel-1 GRD observations using a consistent acquisition configuration wherever possible.
+### Immediate priority
 
-Extract:
+1. Build the FastAPI app around the existing classification service contract.
+2. Add input validation for field and village payloads.
+3. Add basic API docs and health checks.
+4. Keep the service contract stable so later satellite ingestion only changes the underlying feature calculations.
 
-- VV backscatter.
-- VH backscatter.
-- VH/VV polarization contrast.
-- Changes in VV and VH across observation dates.
-- Observation counts and acquisition metadata.
+### Next technical priority
 
-Earth Engine's GRD collection contains calibrated, terrain-corrected backscatter represented in decibels. Be consistent when calculating polarization ratios: subtracting VH dB from VV dB is the dB equivalent of a linear-power ratio, but it must be named and interpreted consistently.
+5. Add the real Sentinel-1 and Sentinel-2 extraction adapter.
+6. Convert the extracted temporal signatures into the same profile structure expected by the rule engine.
+7. Reuse the already-built cluster and rule logic instead of reinventing the pipeline.
 
-Avoid mixing incompatible acquisition configurations without documenting the effects.
+---
 
-### 5.4 NISAR integration
+## 7. Final project target
 
-Do not make NISAR a dependency for the minimum viable product.
+The end objective is a system that takes a field or village boundary, extracts the right satellite time-series features, combines them with historical agricultural patterns, and returns a crop classification with explainable reasons.
+
+The architecture should remain modular:
+
+- data layer
+- feature extraction layer
+- clustering layer
+- labeling layer
+- rule engine
+- API layer
+- validation layer
+
+This is the correct direction for the current repository state and should remain the working plan going forward.
 
 In a later phase:
 

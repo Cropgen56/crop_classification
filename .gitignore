@@ -12,6 +12,18 @@ venv/
 /data/processed/*
 /data/labels/*
 
+# secrets and credentials
+*.json
+!package*.json
+!tsconfig*.json
+!*.example.json
+gee_key*.json
+**/gee_key*.json
+**/*boundary*.json
+.env
+.env.*
+secrets/
+
 # keep raw files tracked if needed
 # uncomment if raw should be excluded from version control
 # /data/raw/
