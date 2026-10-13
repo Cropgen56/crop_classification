@@ -11,3 +11,4 @@ earthengine-api>=0.1.390
 uvicorn>=0.29.0
 httpx<0.28
 streamlit>=1.37.0
+shapely>=2.0.0

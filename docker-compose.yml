@@ -1,0 +1,18 @@
+services:
+  crop-classifier:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: crop-classifier
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      # Optional: set credentials path if mounting Earth Engine key
+      # - GOOGLE_APPLICATION_CREDENTIALS=/app/credentials/gee_key.json
+    volumes:
+      # Optional: mount your Earth Engine service account key without rebuilding
+      # - ./gee_key_boundary-delineation-d7475f36cc6d.json:/app/credentials/gee_key.json:ro
+      # Optional: mount local data directory for persistent outputs
+      - ./data:/app/data
+    restart: unless-stopped

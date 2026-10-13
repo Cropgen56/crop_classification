@@ -1,0 +1,43 @@
+# Git & VCS
+.git
+.gitignore
+
+# Python cache & artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# IDE & OS files
+.vscode/
+.idea/
+.DS_Store
+*.swp
+*~
+
+# Jupyter & Scratch
+.ipynb_checkpoints/
+notebooks/
+scratch/
+
+# Credentials & Secrets (mount at runtime if needed, do not bake into image)
+gee_key*.json
+*service-account*.json
+*boundary*.json
+secrets/
+.env
+.env.*
+
+# Large working/temporary logs and docs
+*.log
+docs/
+*.docx
