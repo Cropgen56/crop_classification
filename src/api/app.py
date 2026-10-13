@@ -1,12 +1,17 @@
 from __future__ import annotations
 
+import json
+from datetime import date, timedelta
+from pathlib import Path
+from queue import Empty, Queue
+from threading import Thread
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+from starlette.responses import FileResponse, StreamingResponse
 
-from src.feature_engineering.sentinel_field_extractor import build_village_field_profiles
-from src.ingestion.village_geojson import normalize_village_fields
 from src.rules.field_candidate_generator import classify_field_profile
 from src.service.classification_service import classify_village_request
 
@@ -16,6 +21,21 @@ app = FastAPI(
     version="0.7.0",
     description="Rule-based crop classification service for village and field profiles.",
 )
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+INDEX_HTML = Path(__file__).resolve().parents[2] / "index.html"
+
+
+def _analysis_end_date() -> str:
+    return date.today().isoformat()
+
+
+def _analysis_start_date() -> str:
+    return (date.today() - timedelta(days=365)).isoformat()
 
 
 class FieldProfileInput(BaseModel):
@@ -51,18 +71,18 @@ class FieldProfileInput(BaseModel):
 class VillageClassificationRequest(BaseModel):
     village_id: str = "unknown"
     fields: list[FieldProfileInput] | dict[str, Any] = Field(default_factory=list)
-
-    @property
-    def normalized_fields(self) -> list[dict[str, Any]]:
-        profiles = build_village_field_profiles(self.fields)
-        if profiles:
-            return profiles
-        return normalize_village_fields(self.fields)
-
+    start_date: str = Field(default_factory=_analysis_start_date)
+    end_date: str = Field(default_factory=_analysis_end_date)
 
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok", "service": "crop_classifier_api"}
+
+
+@app.get("/", include_in_schema=False)
+@app.get("/index.html", include_in_schema=False)
+def index() -> FileResponse:
+    return FileResponse(INDEX_HTML)
 
 
 @app.post("/classify-field")
@@ -84,10 +104,50 @@ def classify_field(payload: FieldProfileInput) -> dict[str, Any]:
 @app.post("/classify-village")
 def classify_village(payload: VillageClassificationRequest) -> dict[str, Any]:
     try:
-        village_payload = {
-            "village_id": payload.village_id,
-            "fields": payload.normalized_fields,
-        }
+        village_payload = _service_payload(payload)
         return classify_village_request(village_payload)
     except Exception as exc:  # pragma: no cover - defensive API layer
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+def _service_payload(payload: VillageClassificationRequest) -> dict[str, Any]:
+    return {
+        "village_id": payload.village_id,
+        "fields": [field.model_dump(exclude_none=True) for field in payload.fields]
+        if isinstance(payload.fields, list)
+        else payload.fields,
+        "start_date": payload.start_date,
+        "end_date": payload.end_date,
+    }
+
+
+@app.post("/classify-village/stream")
+def classify_village_stream(payload: VillageClassificationRequest) -> StreamingResponse:
+    events: Queue[dict[str, Any]] = Queue()
+    finished = False
+
+    def run_classification() -> None:
+        nonlocal finished
+        try:
+            result = classify_village_request(
+                _service_payload(payload),
+                progress_callback=lambda progress: events.put({"type": "progress", **progress}),
+            )
+            events.put({"type": "result", "result": result})
+        except Exception as exc:
+            events.put({"type": "error", "detail": str(exc)})
+        finally:
+            finished = True
+
+    worker = Thread(target=run_classification, daemon=True)
+
+    def stream_events():
+        worker.start()
+        while not finished or not events.empty():
+            try:
+                event = events.get(timeout=0.25)
+            except Empty:
+                continue
+            yield f"data: {json.dumps(event, allow_nan=False)}\n\n"
+
+    return StreamingResponse(stream_events(), media_type="text/event-stream", headers={"Cache-Control": "no-cache"})

@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+import json
 import os
-from typing import Any
+from functools import lru_cache
+from pathlib import Path
+from typing import Any, Callable
 
 import ee
+import pandas as pd
 from shapely.geometry import shape
 
+from src.labeling.temporal_reference import canonicalize_crop_name
 
 def _safe_float(value: Any, default: float = 0.0) -> float:
     try:
@@ -14,26 +19,55 @@ def _safe_float(value: Any, default: float = 0.0) -> float:
         return default
 
 
-def _normalize_crop_name(value: Any) -> str:
-    if value is None:
-        return "unknown"
-    text = str(value).strip()
-    if not text:
-        return "unknown"
-    return text
+def _monthly_windows(start_date: str, end_date: str) -> list[tuple[str, str, str]]:
+    start = pd.Timestamp(start_date).normalize()
+    end = pd.Timestamp(end_date).normalize()
+    if end < start:
+        raise ValueError("end_date must be on or after start_date")
+
+    windows = []
+    cursor = start.replace(day=1)
+    while cursor <= end:
+        next_month = cursor + pd.offsets.MonthBegin(1)
+        window_start = max(start, cursor)
+        window_end = min(end + pd.Timedelta(days=1), next_month)
+        windows.append((window_start.strftime("%Y-%m-%d"), window_end.strftime("%Y-%m-%d"), cursor.strftime("%Y-%m")))
+        cursor = next_month
+    return windows
+
+
+@lru_cache(maxsize=4)
+def _initialize_earth_engine(credentials_path: str) -> bool:
+    try:
+        credential_info = json.loads(Path(credentials_path).read_text())
+        project_id = os.environ.get("GOOGLE_CLOUD_PROJECT") or credential_info.get("project_id")
+        if not project_id:
+            return False
+        credentials = ee.ServiceAccountCredentials(credential_info.get("client_email"), credentials_path)
+        ee.Initialize(credentials=credentials, project=project_id)
+        return True
+    except Exception:
+        return False
 
 
 def _infer_default_shares(dominant_crop: str) -> dict[str, float]:
-    crop = _normalize_crop_name(dominant_crop).lower()
+    crop = canonicalize_crop_name(dominant_crop)
+    crop = crop.lower()
     if "paddy" in crop or "rice" in crop:
-        return {"avg_kharif_share": 0.72, "avg_rabi_share": 0.12, "avg_zaid_share": 0.04, "avg_other_share": 0.12}
+        return {"avg_kharif_share": 0.74, "avg_rabi_share": 0.12, "avg_zaid_share": 0.04, "avg_other_share": 0.10}
+    if "soybean" in crop:
+        return {"avg_kharif_share": 0.68, "avg_rabi_share": 0.14, "avg_zaid_share": 0.06, "avg_other_share": 0.12}
     if "cotton" in crop:
-        return {"avg_kharif_share": 0.56, "avg_rabi_share": 0.18, "avg_zaid_share": 0.04, "avg_other_share": 0.22}
+        return {"avg_kharif_share": 0.58, "avg_rabi_share": 0.16, "avg_zaid_share": 0.04, "avg_other_share": 0.22}
+    if "jowar" in crop or "sorghum" in crop:
+        return {"avg_kharif_share": 0.54, "avg_rabi_share": 0.18, "avg_zaid_share": 0.07, "avg_other_share": 0.21}
     if "wheat" in crop or "gram" in crop or "mustard" in crop:
-        return {"avg_kharif_share": 0.18, "avg_rabi_share": 0.58, "avg_zaid_share": 0.09, "avg_other_share": 0.15}
+        return {"avg_kharif_share": 0.18, "avg_rabi_share": 0.62, "avg_zaid_share": 0.10, "avg_other_share": 0.10}
     if "sugarcane" in crop or "banana" in crop or "orange" in crop or "mango" in crop or "sapota" in crop:
-        return {"avg_kharif_share": 0.22, "avg_rabi_share": 0.16, "avg_zaid_share": 0.06, "avg_other_share": 0.56}
-    return {"avg_kharif_share": 0.42, "avg_rabi_share": 0.28, "avg_zaid_share": 0.08, "avg_other_share": 0.22}
+        return {"avg_kharif_share": 0.22, "avg_rabi_share": 0.18, "avg_zaid_share": 0.06, "avg_other_share": 0.54}
+    if "tur" in crop or "maize" in crop or "bajra" in crop or "groundnut" in crop:
+        return {"avg_kharif_share": 0.60, "avg_rabi_share": 0.15, "avg_zaid_share": 0.07, "avg_other_share": 0.18}
+    return {"avg_kharif_share": 0.42, "avg_rabi_share": 0.24, "avg_zaid_share": 0.08, "avg_other_share": 0.26}
 
 
 def _feature_to_profile(feature: dict[str, Any], index: int) -> dict[str, Any]:
@@ -73,98 +107,208 @@ def _feature_to_profile(feature: dict[str, Any], index: int) -> dict[str, Any]:
             poly = shape(geom)
             area_km2 = abs(poly.area) * 111_320.0 * 111_320.0 * max(0.0, abs(poly.centroid.y) if hasattr(poly.centroid, "y") else 0.0)
             profile["area_km2"] = round(max(area_km2, 0.0) / 1_000_000.0, 6)
+            profile["centroid_lon"] = float(poly.centroid.x)
+            profile["centroid_lat"] = float(poly.centroid.y)
         except Exception:
             profile["area_km2"] = 0.0
+            profile["centroid_lon"] = None
+            profile["centroid_lat"] = None
     else:
         profile["area_km2"] = 0.0
+        profile["centroid_lon"] = None
+        profile["centroid_lat"] = None
 
     profile["satellite"] = {
-        "source": "synthetic_fallback",
-        "ndvi_mean": 0.58,
-        "ndre_mean": 0.29,
-        "evi_mean": 0.41,
-        "s1_vv_mean": -12.5,
-        "s1_vh_mean": -19.2,
-        "polarization_ratio": 6.7,
-        "acquisition_count": 8,
+        "source": "unavailable",
+        "timeseries": [],
+        "reason": "Sentinel observations were not fetched; no satellite values are being substituted.",
+        "ndvi_mean": None,
+        "ndre_mean": None,
+        "gndvi_mean": None,
+        "evi_mean": None,
+        "ndmi_mean": None,
+        "s1_vv_mean": None,
+        "s1_vh_mean": None,
     }
 
     profile.update({key: value for key, value in properties.items() if key not in profile and key not in {"field_id"}})
     return profile
 
 
-def _try_gee_field_profile(feature: dict[str, Any], index: int, start_date: str, end_date: str) -> dict[str, Any] | None:
-    geometry = feature.get("geometry") if isinstance(feature.get("geometry"), dict) else None
-    if geometry is None:
-        return None
-
+def _try_gee_village_profiles(
+    features: list[dict[str, Any]],
+    start_date: str,
+    end_date: str,
+    progress_callback: Callable[[dict[str, Any]], None] | None = None,
+) -> dict[int, dict[str, Any]]:
     credentials_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
     if not credentials_path or not os.path.exists(credentials_path):
-        return None
+        return {}
+    if not _initialize_earth_engine(credentials_path):
+        return {}
 
     try:
-        ee.Initialize(project=None)
-    except Exception:
-        try:
-            ee.Initialize(credentials=ee.ServiceAccountCredentials(None, credentials_path), project=None)
-        except Exception:
-            return None
+        valid_features = []
+        bounds = []
+        for index, feature in enumerate(features):
+            geometry = feature.get("geometry") if isinstance(feature.get("geometry"), dict) else None
+            if geometry is None:
+                continue
+            try:
+                min_x, min_y, max_x, max_y = shape(geometry).bounds
+            except Exception:
+                continue
+            valid_features.append(
+                ee.Feature(ee.Geometry(geometry), {"source_index": index})
+            )
+            bounds.append((min_x, min_y, max_x, max_y))
+        if not valid_features:
+            return {}
 
-    try:
-        geom = ee.Geometry(geometry)
+        region = ee.Geometry.BBox(
+            min(bound[0] for bound in bounds),
+            min(bound[1] for bound in bounds),
+            max(bound[2] for bound in bounds),
+            max(bound[3] for bound in bounds),
+        )
+        field_collection = ee.FeatureCollection(valid_features)
         s2 = (
             ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
-            .filterBounds(geom)
+            .filterBounds(region)
             .filterDate(start_date, end_date)
-            .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 35))
+            .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 80))
         )
-
-        if s2.size().getInfo() == 0:
-            return None
-
-        sentinel = s2.mean()
-        nir = sentinel.select("B8")
-        red = sentinel.select("B4")
-        blue = sentinel.select("B2")
-        ndvi = nir.subtract(red).divide(nir.add(red).clamp(0.0001)).rename("NDVI")
-        ndre = nir.subtract(sentinel.select("B5")).divide(nir.add(sentinel.select("B5")).clamp(0.0001)).rename("NDRE")
-        evi = sentinel.expression(
-            "2.5 * ((NIR - RED) / (NIR + 6 * RED - 7.5 * BLUE + 1))",
-            {"NIR": nir, "RED": red, "BLUE": blue},
-        ).rename("EVI")
-
         s1 = (
             ee.ImageCollection("COPERNICUS/S1_GRD")
-            .filterBounds(geom)
+            .filterBounds(region)
             .filterDate(start_date, end_date)
             .filter(ee.Filter.listContains("transmitterReceiverPolarisation", "VV"))
+            .filter(ee.Filter.listContains("transmitterReceiverPolarisation", "VH"))
             .filter(ee.Filter.eq("instrumentMode", "IW"))
             .select(["VV", "VH"])
         )
 
-        vv_mean = s1.select("VV").mean().reduceRegion(ee.Reducer.mean(), geom, 10, maxPixels=1e9).get("VV")
-        vh_mean = s1.select("VH").mean().reduceRegion(ee.Reducer.mean(), geom, 10, maxPixels=1e9).get("VH")
-        ndvi_mean = ndvi.reduceRegion(ee.Reducer.mean(), geom, 10, maxPixels=1e9).get("NDVI")
-        ndre_mean = ndre.reduceRegion(ee.Reducer.mean(), geom, 10, maxPixels=1e9).get("NDRE")
-        evi_mean = evi.reduceRegion(ee.Reducer.mean(), geom, 10, maxPixels=1e9).get("EVI")
+        s2_bands = ["NDVI", "NDRE", "GNDVI", "EVI", "NDMI"]
+        empty_s2 = ee.Image.constant([0] * len(s2_bands)).rename(s2_bands).updateMask(ee.Image.constant(0))
+        empty_s1 = ee.Image.constant([0, 0]).rename(["VV", "VH"]).updateMask(ee.Image.constant(0))
 
-        profile = _feature_to_profile(feature, index)
-        profile["satellite"] = {
-            "source": "gee_sentinel",
-            "ndvi_mean": _safe_float(ndvi_mean),
-            "ndre_mean": _safe_float(ndre_mean),
-            "evi_mean": _safe_float(evi_mean),
-            "s1_vv_mean": _safe_float(vv_mean),
-            "s1_vh_mean": _safe_float(vh_mean),
-            "polarization_ratio": round(_safe_float(vv_mean) - _safe_float(vh_mean), 4),
-            "acquisition_count": int(s2.size().getInfo()),
-        }
-        return profile
+        def add_s2_indices(image: Any) -> Any:
+            scl = image.select("SCL")
+            cloud_mask = scl.neq(0).And(scl.neq(1)).And(scl.neq(3)).And(scl.neq(8)).And(scl.neq(9)).And(scl.neq(10)).And(scl.neq(11))
+            reflectance = image.select(["B2", "B3", "B4", "B5", "B8", "B11"]).multiply(0.0001).updateMask(cloud_mask)
+            blue = reflectance.select("B2")
+            green = reflectance.select("B3")
+            red = reflectance.select("B4")
+            red_edge = reflectance.select("B5")
+            nir = reflectance.select("B8")
+            swir = reflectance.select("B11")
+            ndvi = nir.subtract(red).divide(nir.add(red).max(0.0001)).rename("NDVI")
+            ndre = nir.subtract(red_edge).divide(nir.add(red_edge).max(0.0001)).rename("NDRE")
+            gndvi = nir.subtract(green).divide(nir.add(green).max(0.0001)).rename("GNDVI")
+            evi = image.expression(
+                "2.5 * ((NIR - RED) / (NIR + 6 * RED - 7.5 * BLUE + 1))",
+                {"NIR": nir, "RED": red, "BLUE": blue},
+            ).rename("EVI")
+            ndmi = nir.subtract(swir).divide(nir.add(swir).max(0.0001)).rename("NDMI")
+            return ee.Image.cat([ndvi, ndre, gndvi, evi, ndmi]).copyProperties(image, ["system:time_start"])
+
+        monthly_images = []
+        for window_start, window_end, month in _monthly_windows(start_date, end_date):
+            s2_month = s2.filterDate(window_start, window_end).map(add_s2_indices)
+            s1_month = s1.filterDate(window_start, window_end)
+            s2_composite = s2_month.merge(ee.ImageCollection.fromImages([empty_s2])).median()
+            s1_composite = s1_month.merge(ee.ImageCollection.fromImages([empty_s1])).mean()
+            s2_count = ee.Image.constant(s2_month.size()).rename(f"s2_count_{month}")
+            s1_count = ee.Image.constant(s1_month.size()).rename(f"s1_count_{month}")
+            monthly_images.append(
+                ee.Image.cat([
+                    s2_composite.rename([f"{band}_{month}" for band in s2_bands]),
+                    s1_composite.rename([f"VV_{month}", f"VH_{month}"]),
+                    s2_count,
+                    s1_count,
+                ])
+            )
+
+        stacked = ee.Image.cat(monthly_images)
+        if progress_callback:
+            progress_callback({
+                "stage": "satellite_extraction",
+                "completed": 0,
+                "total": len(features),
+                "message": f"Fetching monthly Sentinel-1/2 data for {len(valid_features)} field polygons in one batch.",
+            })
+
+        reduced = stacked.reduceRegions(
+            collection=field_collection,
+            reducer=ee.Reducer.mean(),
+            scale=20,
+            tileScale=4,
+        ).getInfo()
+
+        profiles = {}
+        windows = _monthly_windows(start_date, end_date)
+        for result_feature in reduced.get("features", []):
+            properties = result_feature.get("properties", {})
+            try:
+                source_index = int(properties["source_index"])
+            except (KeyError, TypeError, ValueError):
+                continue
+            feature = features[source_index]
+            observations = []
+            for _, _, month in windows:
+                record = {"date": month}
+                for band in s2_bands + ["VV", "VH"]:
+                    record[band.lower()] = _safe_float(properties.get(f"{band}_{month}"), None)
+                record["s2_count"] = int(_safe_float(properties.get(f"s2_count_{month}"), 0))
+                record["s1_count"] = int(_safe_float(properties.get(f"s1_count_{month}"), 0))
+                observations.append(record)
+
+            observed = [row for row in observations if any(row.get(name) is not None for name in ["ndvi", "vv", "vh"])]
+            if not observed:
+                continue
+
+            profile = _feature_to_profile(feature, source_index)
+
+            def mean_band(name: str) -> float | None:
+                values_for_band = [row[name] for row in observations if row.get(name) is not None]
+                return round(sum(values_for_band) / len(values_for_band), 5) if values_for_band else None
+
+            profile["satellite"] = {
+                "source": "gee_sentinel_monthly",
+                "start_date": start_date,
+                "end_date": end_date,
+                "timeseries": observations,
+                "observation_count": len(observed),
+                "s2_observation_count": sum(row["s2_count"] for row in observations),
+                "s1_observation_count": sum(row["s1_count"] for row in observations),
+                "ndvi_mean": mean_band("ndvi"),
+                "ndre_mean": mean_band("ndre"),
+                "gndvi_mean": mean_band("gndvi"),
+                "evi_mean": mean_band("evi"),
+                "ndmi_mean": mean_band("ndmi"),
+                "s1_vv_mean": mean_band("vv"),
+                "s1_vh_mean": mean_band("vh"),
+            }
+            profiles[source_index] = profile
+
+        if progress_callback:
+            progress_callback({
+                "stage": "satellite_extraction",
+                "completed": len(features),
+                "total": len(features),
+                "message": f"Received monthly Sentinel-1/2 observations for {len(profiles)} of {len(valid_features)} polygons.",
+            })
+        return profiles
     except Exception:
-        return None
+        return {}
 
 
-def build_village_field_profiles(village_payload: Any, start_date: str = "2024-01-01", end_date: str = "2024-12-31") -> list[dict[str, Any]]:
+def build_village_field_profiles(
+    village_payload: Any,
+    start_date: str = "2024-01-01",
+    end_date: str = "2024-12-31",
+    progress_callback: Callable[[dict[str, Any]], None] | None = None,
+) -> list[dict[str, Any]]:
     if isinstance(village_payload, dict) and village_payload.get("type") == "FeatureCollection":
         features = village_payload.get("features", [])
     elif isinstance(village_payload, list):
@@ -179,13 +323,25 @@ def build_village_field_profiles(village_payload: Any, start_date: str = "2024-0
     else:
         features = []
 
+    _monthly_windows(start_date, end_date)
+    satellite_profiles = _try_gee_village_profiles(
+        features,
+        start_date,
+        end_date,
+        progress_callback=progress_callback,
+    )
     profiles: list[dict[str, Any]] = []
     for index, feature in enumerate(features):
         if not isinstance(feature, dict):
             continue
-        profile = _try_gee_field_profile(feature, index, start_date, end_date)
+        profile = satellite_profiles.get(index)
         if profile is None:
             profile = _feature_to_profile(feature, index)
+            credentials_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+            if not credentials_path or not os.path.exists(credentials_path):
+                profile["satellite"]["reason"] = "GOOGLE_APPLICATION_CREDENTIALS is missing or unreadable; no satellite values were substituted."
+            else:
+                profile["satellite"]["reason"] = "Earth Engine returned no usable monthly S1/S2 observations; no satellite values were substituted."
         profiles.append(profile)
     return profiles
 

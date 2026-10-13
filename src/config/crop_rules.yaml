@@ -8,17 +8,29 @@ paddy:
   crop_priority: 1
   min_kharif_share: 0.6
   min_top_crop_match: 0.6
-  notes: "Monsoon rice belt; high kharif share and paddy dominance are considered strong evidence."
+  notes: "Monsoon rice belt; high kharif share and paddy dominance are strong evidence."
+
+soybean:
+  season: kharif
+  aliases:
+    - soybean
+    - soyabean
+    - soya bean
+  season_weight: 0.46
+  crop_priority: 2
+  min_kharif_share: 0.5
+  min_top_crop_match: 0.5
+  notes: "Kharif oilseed regime with strong monsoon-season growth and a broad canopy signature."
 
 cotton:
   season: kharif
   aliases:
     - cotton
   season_weight: 0.45
-  crop_priority: 2
+  crop_priority: 3
   min_kharif_share: 0.55
   min_top_crop_match: 0.5
-  notes: "Rainfed kharif cotton regime with strong monsoon seasonality."
+  notes: "Rainfed kharif cotton regime with strong monsoon seasonality and long seasonal plateau."
 
 jowar:
   season: kharif
@@ -26,20 +38,64 @@ jowar:
     - jowar
     - sorghum
   season_weight: 0.35
-  crop_priority: 3
+  crop_priority: 4
   min_kharif_share: 0.35
   min_top_crop_match: 0.4
   notes: "Dryland cereal belt; moderate kharif or mixed seasonal distributions."
+
+bajra:
+  season: kharif
+  aliases:
+    - bajra
+    - pearl millet
+  season_weight: 0.33
+  crop_priority: 5
+  min_kharif_share: 0.4
+  min_top_crop_match: 0.4
+  notes: "Rainfed millet belt with moderate kharif dominance and a distinct short growth cycle."
+
+tur:
+  season: kharif
+  aliases:
+    - tur
+    - arhar
+    - pigeon pea
+  season_weight: 0.38
+  crop_priority: 6
+  min_kharif_share: 0.42
+  min_top_crop_match: 0.45
+  notes: "Kharif pulse regime often intercropped with soybean or cotton."
+
+groundnut:
+  season: kharif
+  aliases:
+    - groundnut
+    - peanut
+  season_weight: 0.35
+  crop_priority: 7
+  min_kharif_share: 0.4
+  min_top_crop_match: 0.45
+  notes: "Rainfed kharif oilseed regime with intermediate canopy and seasonal timing."
 
 sugarcane:
   season: perennial
   aliases:
     - sugarcane
   season_weight: 0.3
-  crop_priority: 4
+  crop_priority: 8
   min_other_share: 0.2
   min_top_crop_match: 0.4
-  notes: "Commercial perennial belt; elevated non-rainy share and stable dominance."
+  notes: "Commercial perennial belt with elevated non-rainy share and stable dominance."
+
+wheat:
+  season: rabi
+  aliases:
+    - wheat
+  season_weight: 0.45
+  crop_priority: 9
+  min_rabi_share: 0.5
+  min_top_crop_match: 0.5
+  notes: "Rabi cereal belt; strong winter season signal."
 
 gram:
   season: rabi
@@ -47,20 +103,22 @@ gram:
     - gram
     - chickpea
   season_weight: 0.5
-  crop_priority: 5
+  crop_priority: 10
   min_rabi_share: 0.45
   min_top_crop_match: 0.5
   notes: "Winter-season pulse regime; gram and other rabi crops dominate."
 
-wheat:
+mustard:
   season: rabi
   aliases:
-    - wheat
-  season_weight: 0.45
-  crop_priority: 6
-  min_rabi_share: 0.5
-  min_top_crop_match: 0.5
-  notes: "Rabi cereal belt; strong winter season signal."
+    - mustard
+    - rapeseed mustard
+    - rapeseed
+  season_weight: 0.42
+  crop_priority: 11
+  min_rabi_share: 0.42
+  min_top_crop_match: 0.45
+  notes: "Rabi oilseed belt with winter-season peak and significant cold-season signal."
 
 maize:
   season: kharif
@@ -68,7 +126,86 @@ maize:
     - maize
     - corn
   season_weight: 0.35
-  crop_priority: 7
+  crop_priority: 12
   min_kharif_share: 0.45
   min_top_crop_match: 0.4
   notes: "Kharif cereal or mixed cereal regime; covers maize-heavy areas."
+
+onion:
+  season: rabi
+  aliases:
+    - onion
+  season_weight: 0.38
+  crop_priority: 13
+  min_rabi_share: 0.35
+  min_top_crop_match: 0.4
+  notes: "Irrigated winter crop with a distinctive seasonal and moisture-driven profile."
+
+chilli:
+  season: kharif
+  aliases:
+    - chilli
+    - chili
+  season_weight: 0.34
+  crop_priority: 14
+  min_kharif_share: 0.38
+  min_top_crop_match: 0.4
+  notes: "Commercial kharif crop often appearing in broader mixed or irrigated patterns."
+
+banana:
+  season: perennial
+  aliases:
+    - banana
+  season_weight: 0.28
+  crop_priority: 15
+  min_other_share: 0.22
+  min_top_crop_match: 0.35
+  notes: "Perennial horticulture regime with long-duration canopy and minimal seasonal fluctuation."
+
+mango:
+  season: perennial
+  aliases:
+    - mango
+  season_weight: 0.26
+  crop_priority: 16
+  min_other_share: 0.2
+  min_top_crop_match: 0.35
+  notes: "Perennial orchard system with seasonal stability and distinct long-cycle structure."
+
+mixed_crop:
+  season: mixed
+  aliases:
+    - mixed crop
+    - mixed
+    - intercropped
+    - soybean tur
+    - soybean+tur
+  season_weight: 0.25
+  crop_priority: 17
+  min_other_share: 0.15
+  min_top_crop_match: 0.3
+  notes: "Fields with intercropping or multi-crop patterns should be flagged as mixed rather than forced into a single crop class."
+
+fallow:
+  season: mixed
+  aliases:
+    - fallow
+    - uncultivated
+    - bare
+  season_weight: 0.18
+  crop_priority: 18
+  min_other_share: 0.18
+  min_top_crop_match: 0.25
+  notes: "Low-vegetation or inactive field regime; should not be mistaken for a crop signal."
+
+other_crop:
+  season: mixed
+  aliases:
+    - other crop
+    - other
+    - unknown
+  season_weight: 0.12
+  crop_priority: 19
+  min_other_share: 0.08
+  min_top_crop_match: 0.2
+  notes: "Residual class for uncommon crops or crop mixes that do not fit the main agronomic classes."

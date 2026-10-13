@@ -12,7 +12,15 @@ def test_health_endpoint():
     assert response.json()["status"] == "ok"
 
 
-def test_classify_village_endpoint():
+def test_static_ui_routes():
+    assert client.get("/").status_code == 200
+    assert client.get("/index.html").status_code == 200
+
+
+def test_classify_village_endpoint(monkeypatch):
+    from src.feature_engineering import sentinel_field_extractor
+
+    monkeypatch.setattr(sentinel_field_extractor, "_initialize_earth_engine", lambda _path: False)
     payload = {
         "village_id": "v001",
         "fields": {
@@ -58,5 +66,5 @@ def test_classify_village_endpoint():
     assert response.status_code == 200
     body = response.json()
     assert body["village_id"] == "v001"
-    assert body["dominant_crop"] == "paddy"
+    assert body["dominant_crop"] == "satellite data unavailable"
     assert "top_candidates" in body

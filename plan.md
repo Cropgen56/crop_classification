@@ -37,6 +37,18 @@ The project is currently validated around a clustering-first, explainable classi
 
 ## 3. Current project logic
 
+### 3.0 Data audit outcome
+
+A real audit of the repository data shows the following:
+
+- [Crop_Index_Exact_Temporal_Points.csv](Crop_Index_Exact_Temporal_Points.csv) is the strongest evidence file available for crop phenology and temporal signatures.
+- [maharashtra_farms_cleaned.csv](maharashtra_farms_cleaned.csv) contains real field-level crop labels and geometry, which is useful as a validation and seed dataset.
+- [MH_Crop_History_1997_2019.xlsx](MH_Crop_History_1997_2019.xlsx) provides district and crop-history priors for Maharashtra crop regimes.
+- [MH_Crop_Training_Data.xlsx](MH_Crop_Training_Data.xlsx) contains the training workbook structure and calendar references, but no filled ground-truth training labels yet.
+- Therefore, the current system should remain clustering-first and evidence-based rather than directly supervised.
+
+The decision is to use clustering for temporal similarity and label assignment, then map the cluster outputs to agronomic crop profiles using the exact temporal reference and crop calendars.
+
 ### 3.1 Historical feature pipeline
 
 The project starts from district and village agriculture data, then builds a region profile based on:
@@ -106,29 +118,28 @@ The project now supports field-level candidate generation and village aggregate 
 
 ### Phase 4: service contract and API exposure
 
-Status: next.
+Status: implemented.
 
-The target here is a FastAPI application that wraps the current service contract and exposes endpoints such as:
+The FastAPI application exposes:
 
 - health
 - classify-field
 - classify-village
-- optional batch classification for multiple fields
+- classify-village/stream with backend progress events
 
 ### Phase 5: real Sentinel feature extraction
 
-Status: next.
+Status: implemented first operational pass; calibration remains pending.
 
-This is the true operational step: replace the current static profile logic with geospatial satellite extraction using Sentinel-1 and Sentinel-2.
+For each uploaded polygon, the service now requests monthly Sentinel-1 and Sentinel-2 composites from Earth Engine for the selected date range. Sentinel-2 cloud/shadow classes are masked; the extracted series includes NDVI, NDRE, GNDVI, EVI, NDMI, VV, and VH. Missing observations remain null rather than being replaced with crop-derived values.
 
-The system should:
+Field polygons are clustered with KMeans on standardized monthly sensor trajectories plus lower-weight centroid features. Cluster and field crop candidates are ranked by matching observed index curves against crop-age measurements in the exact temporal reference file. Low evidence scores remain candidates and are not promoted to crop labels.
 
-- accept a GeoJSON boundary or field polygon
-- use Earth Engine or a local processing pipeline to fetch S1/S2 data
-- calculate time-series vegetation and radar features
-- extract NDVI, NDRE, EVI, SAVI, and related indices when needed
-- derive seasonal metrics and crop signatures
-- combine these values with historical crop priors and rule scores
+Remaining work for this phase:
+
+- calibrate confidence thresholds against held-out, labeled fields
+- assess temporal coverage and cloud gaps across districts and seasons
+- evaluate whether additional indices or local processing improve separability
 
 ### Phase 6: calibration and validation
 

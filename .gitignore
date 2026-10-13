@@ -27,3 +27,6 @@ secrets/
 # keep raw files tracked if needed
 # uncomment if raw should be excluded from version control
 # /data/raw/
+
+.vscode/
+.pytest_cache/
