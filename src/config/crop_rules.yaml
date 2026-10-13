@@ -1,0 +1,74 @@
+paddy:
+  season: kharif
+  aliases:
+    - paddy
+    - rice
+    - paddy rice
+  season_weight: 0.5
+  crop_priority: 1
+  min_kharif_share: 0.6
+  min_top_crop_match: 0.6
+  notes: "Monsoon rice belt; high kharif share and paddy dominance are considered strong evidence."
+
+cotton:
+  season: kharif
+  aliases:
+    - cotton
+  season_weight: 0.45
+  crop_priority: 2
+  min_kharif_share: 0.55
+  min_top_crop_match: 0.5
+  notes: "Rainfed kharif cotton regime with strong monsoon seasonality."
+
+jowar:
+  season: kharif
+  aliases:
+    - jowar
+    - sorghum
+  season_weight: 0.35
+  crop_priority: 3
+  min_kharif_share: 0.35
+  min_top_crop_match: 0.4
+  notes: "Dryland cereal belt; moderate kharif or mixed seasonal distributions."
+
+sugarcane:
+  season: perennial
+  aliases:
+    - sugarcane
+  season_weight: 0.3
+  crop_priority: 4
+  min_other_share: 0.2
+  min_top_crop_match: 0.4
+  notes: "Commercial perennial belt; elevated non-rainy share and stable dominance."
+
+gram:
+  season: rabi
+  aliases:
+    - gram
+    - chickpea
+  season_weight: 0.5
+  crop_priority: 5
+  min_rabi_share: 0.45
+  min_top_crop_match: 0.5
+  notes: "Winter-season pulse regime; gram and other rabi crops dominate."
+
+wheat:
+  season: rabi
+  aliases:
+    - wheat
+  season_weight: 0.45
+  crop_priority: 6
+  min_rabi_share: 0.5
+  min_top_crop_match: 0.5
+  notes: "Rabi cereal belt; strong winter season signal."
+
+maize:
+  season: kharif
+  aliases:
+    - maize
+    - corn
+  season_weight: 0.35
+  crop_priority: 7
+  min_kharif_share: 0.45
+  min_top_crop_match: 0.4
+  notes: "Kharif cereal or mixed cereal regime; covers maize-heavy areas."
