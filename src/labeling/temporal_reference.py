@@ -84,15 +84,83 @@ def canonicalize_crop_name(value: Any) -> str:
     return text
 
 
-def load_crop_signature_reference(csv_path: str | Path | None = None) -> list[dict[str, Any]]:
-    path = Path(csv_path) if csv_path is not None else EXACT_SERIES_PATH
+MASTER_FILE = ROOT_DIR / "MH_Crop_Master_2015_2026.xlsx"
+
+
+def _parse_range(val: Any) -> float | None:
+    if val is None or pd.isna(val):
+        return None
+    s = str(val).strip().replace("−", "-")
+    parts = re.split(r"\s+to\s+|–", s)
+    if len(parts) == 1:
+        m = re.findall(r"[-+]?\d*\.?\d+", s)
+        if len(m) >= 2 and "-" in s[1:]:
+            parts = m[:2]
+        else:
+            parts = m
+    try:
+        nums = [float(p.strip().replace("DAT", "").replace("+", "")) for p in parts if p.strip()]
+        if len(nums) >= 2:
+            return (nums[0] + nums[1]) / 2.0
+        elif len(nums) == 1:
+            return nums[0]
+    except Exception:
+        pass
+    return None
+
+
+from functools import lru_cache
+
+
+@lru_cache(maxsize=1)
+def _load_master_crop_signatures() -> tuple[dict[str, Any], ...]:
+    if not MASTER_FILE.exists():
+        return ()
+    try:
+        df = pd.read_excel(MASTER_FILE, sheet_name="Crop_Index_Signatures", header=3)
+        records: list[dict[str, Any]] = []
+        for _, row in df.iterrows():
+            crop_raw = str(row.get("Crop", "")).strip()
+            crop = canonicalize_crop_name(crop_raw)
+            if not crop or crop == "unknown":
+                continue
+            das = _parse_range(row.get("DAS"))
+            if das is None:
+                continue
+            for idx_col in ["NDVI", "EVI", "NDRE", "S1_VH_dB", "S1_VV_dB"]:
+                val = _parse_range(row.get(idx_col))
+                if val is not None:
+                    clean_idx = idx_col.lower().replace("s1_", "").replace("_db", "")
+                    records.append({
+                        "crop": crop,
+                        "study": "MH_Crop_Master",
+                        "study_location": "Maharashtra",
+                        "study_year": "2015-2026",
+                        "measurement_method": "satellite_composite_signature",
+                        "index": clean_idx,
+                        "crop_age": das,
+                        "age_unit": "days",
+                        "observation_date": "2024-01-01",
+                        "index_value": val,
+                        "standard_deviation": None,
+                        "source_url": "MH_Crop_Master_2015_2026.xlsx",
+                        "notes": f"Stage: {row.get('Stage')}; Key_Cue: {row.get('Key_Cue')}",
+                    })
+        return tuple(records)
+    except Exception:
+        return ()
+
+
+@lru_cache(maxsize=4)
+def _load_crop_signature_reference_cached(csv_path_str: str | None = None) -> tuple[dict[str, Any], ...]:
+    path = Path(csv_path_str) if csv_path_str is not None else EXACT_SERIES_PATH
 
     if not path.exists():
         raise FileNotFoundError(f"Temporal reference file not found: {path}")
 
     df = pd.read_csv(path)
     if df.empty:
-        return []
+        return ()
 
     required = {"crop", "index", "crop_age", "age_unit", "index_value", "observation_date"}
     missing = sorted(required - set(df.columns))
@@ -105,7 +173,7 @@ def load_crop_signature_reference(csv_path: str | Path | None = None) -> list[di
     normalized["index_value"] = pd.to_numeric(normalized["index_value"], errors="coerce")
     normalized = normalized.dropna(subset=["crop", "index_value"]).copy()
     normalized = normalized[normalized["crop"] != "unknown"].copy()
-    return normalized[
+    base_records = normalized[
         [
             "crop",
             "study",
@@ -122,6 +190,15 @@ def load_crop_signature_reference(csv_path: str | Path | None = None) -> list[di
             "notes",
         ]
     ].to_dict(orient="records")
+
+    master_records = _load_master_crop_signatures() if csv_path_str is None else ()
+    return tuple(base_records) + master_records
+
+
+def load_crop_signature_reference(csv_path: str | Path | None = None) -> list[dict[str, Any]]:
+    path_key = str(csv_path) if csv_path is not None else None
+    return list(_load_crop_signature_reference_cached(path_key))
+
 
 
 def build_crop_signature_summary(reference_records: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:

@@ -68,3 +68,23 @@ def test_classify_village_endpoint(monkeypatch):
     assert body["village_id"] == "v001"
     assert body["dominant_crop"] == "satellite data unavailable"
     assert "top_candidates" in body
+
+
+def test_classify_village_endpoint_with_district(monkeypatch):
+    from src.feature_engineering import sentinel_field_extractor
+
+    monkeypatch.setattr(sentinel_field_extractor, "_initialize_earth_engine", lambda _path: False)
+    payload = {
+        "village_id": "amravati_vill_01",
+        "district_name": "Amravati",
+        "fields": [],
+    }
+
+    response = client.post("/classify-village", json=payload)
+    assert response.status_code == 200
+    body = response.json()
+    assert body["village_id"] == "amravati_vill_01"
+    assert body["district_name"] == "Amravati"
+    assert body["prior_filtering_active"] is True
+    assert body["prior_crop_count"] > 10
+

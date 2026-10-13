@@ -6,6 +6,7 @@ from typing import Any, Callable
 import pandas as pd
 
 from src.feature_engineering.sentinel_field_extractor import build_village_field_profiles
+from src.ingestion.district_priors import get_district_priors
 from src.ingestion.village_geojson import normalize_village_fields
 from src.labeling.temporal_clustering import (
     CROP_GROUPS,
@@ -107,9 +108,14 @@ def classify_village_request(
     progress_callback: Callable[[dict[str, Any]], None] | None = None,
 ) -> dict[str, Any]:
     village_id = payload.get("village_id", "unknown")
+    district_name: str = str(payload.get("district_name") or "").strip()
     fields = payload.get("fields", [])
     end_date = payload.get("end_date", date.today().isoformat())
     start_date = payload.get("start_date", (date.today() - timedelta(days=365)).isoformat())
+
+    # Load district priors once — applied to every rank_crops_for_temporal_series call.
+    # Empty dict when district_name is blank or unknown (= uniform prior, original behaviour).
+    district_priors: dict[str, float] = get_district_priors(district_name) if district_name else {}
 
     if isinstance(payload, dict) and "fields" not in payload and "type" in payload and payload.get("type") == "FeatureCollection":
         fields = payload
@@ -181,7 +187,9 @@ def classify_village_request(
             for band, values in bands.items():
                 record[band] = sum(values) / len(values)
             cluster_series.append(record)
-        crop_candidates = rank_crops_for_temporal_series(cluster_series, evidence_records)
+        crop_candidates = rank_crops_for_temporal_series(
+            cluster_series, evidence_records, district_priors=district_priors or None
+        )
         best = crop_candidates[0] if crop_candidates else None
         has_confident_match = bool(best and best["score"] >= MIN_TEMPORAL_MATCH_SCORE)
         label = f"{best['crop']}-like temporal cluster" if has_confident_match else "unmatched temporal cluster"
@@ -210,7 +218,9 @@ def classify_village_request(
         if profile is None or cluster_id is None:
             continue
         series = profile["satellite"].get("timeseries", [])
-        crop_candidates = rank_crops_for_temporal_series(series, evidence_records)
+        crop_candidates = rank_crops_for_temporal_series(
+            series, evidence_records, district_priors=district_priors or None
+        )
         label = cluster_labels.get(cluster_id, "unmatched temporal cluster")
         prediction["cluster_id"] = cluster_id
         prediction["cluster_label"] = label
@@ -253,6 +263,9 @@ def classify_village_request(
     response = {
         "request_version": REQUEST_VERSION,
         "village_id": village_id,
+        "district_name": district_name or None,
+        "prior_filtering_active": bool(district_priors),
+        "prior_crop_count": len(district_priors),
         "dominant_crop": result.get("dominant_crop"),
         "dominant_share": result.get("dominant_share"),
         "field_count": result.get("field_count"),

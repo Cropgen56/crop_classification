@@ -151,3 +151,68 @@ def test_temporal_clusters_use_satellite_series_not_crop_metadata(monkeypatch):
     assert result["satellite_field_count"] == 2
     assert len(result["cluster_summary"]) == 2
     assert result["field_predictions"][0]["cluster_id"] != result["field_predictions"][1]["cluster_id"]
+
+
+def test_classify_village_request_applies_district_priors(monkeypatch):
+    from src.service import classification_service
+
+    def make_profile(field_id, values):
+        return {
+            "field_id": field_id,
+            "dominant_top_crop": "Soybean",
+            "avg_kharif_share": 0.7,
+            "avg_rabi_share": 0.2,
+            "avg_zaid_share": 0.05,
+            "avg_other_share": 0.05,
+            "satellite": {
+                "source": "gee_sentinel_monthly",
+                "timeseries": [
+                    {
+                        "date": f"2024-{month:02d}",
+                        "ndvi": value,
+                        "ndre": value - 0.1,
+                        "gndvi": value - 0.05,
+                        "evi": value,
+                        "ndmi": value - 0.2,
+                        "vv": -12.0 + value,
+                        "vh": -19.0 + value,
+                    }
+                    for month, value in enumerate(values, start=6)
+                ],
+            },
+        }
+
+    # Simulate 4 fields in an Amravati village
+    profiles = [
+        make_profile(f"f{i}", [0.25, 0.55, 0.78, 0.65, 0.35, 0.22])
+        for i in range(4)
+    ]
+    monkeypatch.setattr(classification_service, "build_village_field_profiles", lambda *_args, **_kwargs: profiles)
+
+    # 1. Without district name
+    result_no_district = classification_service.classify_village_request({
+        "village_id": "amravati_vill_01",
+        "fields": [],
+    })
+    assert result_no_district["prior_filtering_active"] is False
+
+    # 2. With Amravati district name
+    result_amravati = classification_service.classify_village_request({
+        "village_id": "amravati_vill_01",
+        "district_name": "Amravati",
+        "fields": [],
+    })
+    assert result_amravati["prior_filtering_active"] is True
+    assert result_amravati["district_name"] == "Amravati"
+    assert result_amravati["prior_crop_count"] > 10
+
+    # Ensure paddy does not dominate over soybean / cotton
+    cluster_crops = [
+        cand["crop"] for c in result_amravati["cluster_summary"]
+        for cand in c.get("crop_candidates", [])
+    ]
+    if "paddy" in cluster_crops and "soybean" in cluster_crops:
+        soy_cand = next(cand for c in result_amravati["cluster_summary"] for cand in c["crop_candidates"] if cand["crop"] == "soybean")
+        pad_cand = next(cand for c in result_amravati["cluster_summary"] for cand in c["crop_candidates"] if cand["crop"] == "paddy")
+        assert soy_cand["score"] > pad_cand["score"]
+

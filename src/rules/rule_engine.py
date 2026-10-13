@@ -8,6 +8,8 @@ import yaml
 from src.config.settings import ROOT_DIR
 
 
+from functools import lru_cache
+
 DEFAULT_RULES_PATH = ROOT_DIR / "src" / "config" / "crop_rules.yaml"
 
 
@@ -29,6 +31,7 @@ def _rule_aliases(rule: dict) -> list[str]:
     return [_normalize_crop_name(alias) for alias in aliases]
 
 
+@lru_cache(maxsize=4)
 def load_crop_rules(path: str | Path | None = None) -> dict:
     if path is None:
         path = DEFAULT_RULES_PATH

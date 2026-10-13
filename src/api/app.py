@@ -19,7 +19,7 @@ from src.service.classification_service import classify_village_request
 app = FastAPI(
     title="Maharashtra Crop Classifier API",
     version="0.7.0",
-    description="Rule-based crop classification service for village and field profiles.",
+    description="Time Series Clustered Rule-based crop classification service for village and field profiles.",
 )
 app.add_middleware(
     CORSMiddleware,
@@ -70,6 +70,7 @@ class FieldProfileInput(BaseModel):
 
 class VillageClassificationRequest(BaseModel):
     village_id: str = "unknown"
+    district_name: str | None = None
     fields: list[FieldProfileInput] | dict[str, Any] = Field(default_factory=list)
     start_date: str = Field(default_factory=_analysis_start_date)
     end_date: str = Field(default_factory=_analysis_end_date)
@@ -113,6 +114,7 @@ def classify_village(payload: VillageClassificationRequest) -> dict[str, Any]:
 def _service_payload(payload: VillageClassificationRequest) -> dict[str, Any]:
     return {
         "village_id": payload.village_id,
+        "district_name": payload.district_name or "",
         "fields": [field.model_dump(exclude_none=True) for field in payload.fields]
         if isinstance(payload.fields, list)
         else payload.fields,
@@ -125,6 +127,15 @@ def _service_payload(payload: VillageClassificationRequest) -> dict[str, Any]:
 def classify_village_stream(payload: VillageClassificationRequest) -> StreamingResponse:
     events: Queue[dict[str, Any]] = Queue()
     finished = False
+
+    # Immediate acknowledgement so HTTP stream begins instantly
+    events.put({
+        "type": "progress",
+        "stage": "geojson_validated",
+        "completed": 0,
+        "total": 1,
+        "message": f"GeoJSON received ({len(payload.fields) if isinstance(payload.fields, list) else 'FeatureCollection'}). Preparing classification...",
+    })
 
     def run_classification() -> None:
         nonlocal finished
@@ -145,9 +156,18 @@ def classify_village_stream(payload: VillageClassificationRequest) -> StreamingR
         worker.start()
         while not finished or not events.empty():
             try:
-                event = events.get(timeout=0.25)
+                event = events.get(timeout=1.0)
+                yield f"data: {json.dumps(event, allow_nan=False)}\n\n"
             except Empty:
-                continue
-            yield f"data: {json.dumps(event, allow_nan=False)}\n\n"
+                if not finished:
+                    yield ": keep-alive\n\n"
 
-    return StreamingResponse(stream_events(), media_type="text/event-stream", headers={"Cache-Control": "no-cache"})
+    return StreamingResponse(
+        stream_events(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        },
+    )

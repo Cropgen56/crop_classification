@@ -32,7 +32,14 @@ def _safe_numeric(value: Any, default: float = 0.0) -> float:
         return default
 
 
+_DEFAULT_REF_STATS: dict[str, dict[str, float]] | None = None
+
+
 def _reference_crop_stats(reference_records: list[dict[str, Any]] | None = None) -> dict[str, dict[str, float]]:
+    global _DEFAULT_REF_STATS
+    if reference_records is None and _DEFAULT_REF_STATS is not None:
+        return _DEFAULT_REF_STATS
+
     records = reference_records if reference_records is not None else load_crop_signature_reference()
     if not records:
         return {}
@@ -53,6 +60,9 @@ def _reference_crop_stats(reference_records: list[dict[str, Any]] | None = None)
             values = pd.to_numeric(index_group["index_value"], errors="coerce")
             crop_summary[index_name] = float(values.mean())
         summary[crop] = crop_summary
+
+    if reference_records is None:
+        _DEFAULT_REF_STATS = summary
     return summary
 
 
@@ -334,27 +344,169 @@ def _crop_age_days(value: Any, unit: Any) -> float | None:
     return age
 
 
-def rank_crops_for_temporal_series(
+def _detect_intercrop_candidates(
     timeseries: list[dict[str, Any]],
-    reference_records: list[dict[str, Any]] | None = None,
+    district_priors: dict[str, float],
 ) -> list[dict[str, Any]]:
-    records = reference_records if reference_records is not None else load_crop_signature_reference()
-    if not timeseries or not records:
+    """
+    Heuristic intercrop detector based on NDVI temporal patterns.
+
+    Cotton+Soybean (prior key ``cotton_soybean``):
+      Soybean peaks in Aug (NDVI 0.75-0.88), then instead of the steep Oct drop
+      (pure soybean senescence) the NDVI remains elevated (> 0.55) for 2+ months
+      because the cotton canopy fills in → plateau / double-hump pattern.
+
+    Soybean+Tur (prior key ``soybean_tur``):
+      Soybean peak in Aug, normal Oct decline, but NDVI recovers to > 0.40 in
+      Nov–Dec when tur rows flower and pod (tur DAS 100-140).
+
+    Only fires when the district prior for the intercrop class is ≥ 5 %.
+    """
+    observed = [
+        (str(r.get("date", "")), r["ndvi"])
+        for r in timeseries
+        if r.get("ndvi") is not None
+    ]
+    if len(observed) < 4:
         return []
+
+    observed.sort(key=lambda x: x[0])
+    ndvi_values = [float(v) for _, v in observed]
+
+    peak_idx = int(np.argmax(ndvi_values))
+    peak_ndvi = ndvi_values[peak_idx]
+    if peak_ndvi < 0.60:
+        return []   # No meaningful vegetation peak
+
+    post_peak = ndvi_values[peak_idx + 1:]
+    candidates: list[dict[str, Any]] = []
+
+    # ── Cotton + Soybean (double-hump / plateau) ──────────────────────────
+    cs_prior = district_priors.get("cotton_soybean", 0.0)
+    if cs_prior >= 0.05 and len(post_peak) >= 2:
+        # NDVI does NOT drop below 0.55 for at least 2 months after peak
+        if all(v >= 0.55 for v in post_peak[:2]):
+            score = round(cs_prior * 0.75, 4)   # prior-weighted heuristic score
+            candidates.append({
+                "crop": "cotton_soybean",
+                "score": score,
+                "prior_weight": round(cs_prior, 4),
+                "raw_score": round(0.75, 4),
+                "evidence": {
+                    "pattern": "plateau_after_peak",
+                    "peak_ndvi": round(peak_ndvi, 4),
+                    "post_peak_ndvi": [round(v, 4) for v in post_peak[:2]],
+                    "reference": "intercrop_heuristic",
+                    "rmse": None,
+                    "matched_points": len(post_peak[:2]),
+                    "planting_lag_months": None,
+                },
+            })
+
+    # ── Soybean + Tur (extended tail/rebound after soybean drop) ─────────
+    st_prior = district_priors.get("soybean_tur", 0.0)
+    if st_prior >= 0.05 and len(post_peak) >= 3:
+        # NDVI drops after peak (soybean senescence) then exhibits a tur secondary shoulder/rebound
+        trough_val = min(post_peak[:2])
+        has_drop = trough_val < peak_ndvi * 0.75
+        # Secondary tail or rebound >= 0.40 after the trough
+        tur_tail = any(v >= 0.40 for v in post_peak[1:4]) and (max(post_peak[1:4]) > trough_val or post_peak[2] >= 0.40)
+        if has_drop and tur_tail:
+            score = round(st_prior * 0.70, 4)
+            candidates.append({
+                "crop": "soybean_tur",
+                "score": score,
+                "prior_weight": round(st_prior, 4),
+                "raw_score": round(0.70, 4),
+                "evidence": {
+                    "pattern": "tur_tail_after_soybean_drop",
+                    "peak_ndvi": round(peak_ndvi, 4),
+                    "post_peak_ndvi": [round(v, 4) for v in post_peak[:3]],
+                    "reference": "intercrop_heuristic",
+                    "rmse": None,
+                    "matched_points": len(post_peak[:3]),
+                    "planting_lag_months": None,
+                },
+            })
+
+    return candidates
+
+
+_DEFAULT_CURVES: dict[str, dict[str, pd.Series]] | None = None
+
+
+def _get_reference_curves(reference_records: list[dict[str, Any]] | None = None) -> dict[str, dict[str, pd.Series]]:
+    global _DEFAULT_CURVES
+    if reference_records is None and _DEFAULT_CURVES is not None:
+        return _DEFAULT_CURVES
+
+    records = reference_records if reference_records is not None else load_crop_signature_reference()
+    if not records:
+        return {}
 
     reference = pd.DataFrame(records)
     reference["crop"] = reference["crop"].apply(canonicalize_crop_name)
     reference["index"] = reference["index"].fillna("").astype(str).str.lower()
     reference["index_value"] = pd.to_numeric(reference["index_value"], errors="coerce")
-    reference["age_days"] = reference.apply(lambda row: _crop_age_days(row.get("crop_age"), row.get("age_unit")), axis=1)
+    reference["age_days"] = reference.apply(
+        lambda row: _crop_age_days(row.get("crop_age"), row.get("age_unit")), axis=1
+    )
     reference = reference[
         reference["index"].isin(EVIDENCE_INDICES)
         & reference["age_days"].notna()
         & reference["index_value"].notna()
     ]
     if reference.empty:
+        return {}
+
+    curves_by_crop: dict[str, dict[str, pd.Series]] = {}
+    for crop, crop_rows in reference.groupby("crop"):
+        curves: dict[str, pd.Series] = {}
+        for index_name, index_rows in crop_rows.groupby("index"):
+            curve = index_rows.groupby("age_days")["index_value"].mean().sort_index()
+            if len(curve) >= 2:
+                curves[index_name] = curve
+        if curves:
+            curves_by_crop[crop] = curves
+
+    if reference_records is None:
+        _DEFAULT_CURVES = curves_by_crop
+    return curves_by_crop
+
+
+def rank_crops_for_temporal_series(
+    timeseries: list[dict[str, Any]],
+    reference_records: list[dict[str, Any]] | None = None,
+    district_priors: dict[str, float] | None = None,
+) -> list[dict[str, Any]]:
+    """
+    Rank crop candidates against an observed monthly time-series.
+
+    Parameters
+    ----------
+    timeseries:
+        List of monthly observation dicts with keys ``date``, ``ndvi``,
+        ``ndre``, ``gndvi``, and optionally ``vv``/``vh``.
+    reference_records:
+        Pre-loaded reference table (optional; loaded from CSV if None).
+    district_priors:
+        ``{canonical_crop: prior_weight}`` from
+        ``src.ingestion.district_priors.get_district_priors``.  When
+        provided, the final score is the Bayesian posterior:
+
+            posterior = rmse_score × prior_weight
+
+        Crops absent from the table get the implausible floor (0.002).
+        Pass ``None`` to skip prior weighting (= uniform prior).
+    """
+    if not timeseries:
         return []
 
+    curves_by_crop = _get_reference_curves(reference_records)
+    if not curves_by_crop:
+        return []
+
+    # Build observed series sorted by date (not row index)
     observed = []
     for record in timeseries:
         try:
@@ -364,51 +516,75 @@ def rank_crops_for_temporal_series(
         point = {"date": month}
         for index_name in EVIDENCE_INDICES:
             try:
-                point[index_name] = float(record[index_name])
+                val = float(record[index_name])
+                point[index_name] = val if math.isfinite(val) else np.nan
             except (KeyError, TypeError, ValueError):
                 point[index_name] = np.nan
         observed.append(point)
     if len(observed) < 2:
         return []
 
-    observed_frame = pd.DataFrame(observed).sort_values("date").reset_index(drop=True)
-    candidates = []
-    for crop, crop_rows in reference.groupby("crop"):
-        curves = {}
-        for index_name, index_rows in crop_rows.groupby("index"):
-            curve = index_rows.groupby("age_days")["index_value"].mean().sort_index()
-            if len(curve) >= 2:
-                curves[index_name] = curve
-        if not curves:
-            continue
+    observed.sort(key=lambda item: item["date"])
 
-        best = None
+    # ── RMSE curve matching ───────────────────────────────────────────────
+    raw_candidates: list[dict[str, Any]] = []
+    for crop, curves in curves_by_crop.items():
+        best: dict[str, Any] | None = None
         for planting_lag in range(13):
             errors = []
-            for point_index, point in observed_frame.iterrows():
-                age_days = (point_index - planting_lag) * 30.44
+            for pos, point in enumerate(observed):
+                # Use actual calendar-position offset, not DataFrame row index,
+                # so missing months (cloud gaps) do not shift the age estimate.
+                age_days = (pos - planting_lag) * 30.44
                 if age_days < 0:
                     continue
                 for index_name, curve in curves.items():
-                    observed_value = point[index_name]
-                    if pd.isna(observed_value) or age_days < curve.index.min() or age_days > curve.index.max():
+                    obs_val = point.get(index_name)
+                    if (
+                        obs_val is None
+                        or pd.isna(obs_val)
+                        or age_days < curve.index.min()
+                        or age_days > curve.index.max()
+                    ):
                         continue
-                    observed_value = float(observed_value)
-                    if not math.isfinite(observed_value):
+                    obs_val = float(obs_val)
+                    if not math.isfinite(obs_val):
                         continue
-                    expected = float(np.interp(age_days, curve.index.to_numpy(dtype=float), curve.to_numpy(dtype=float)))
-                    errors.append((observed_value - expected) ** 2)
+                    expected = float(
+                        np.interp(
+                            age_days,
+                            curve.index.to_numpy(dtype=float),
+                            curve.to_numpy(dtype=float),
+                        )
+                    )
+                    errors.append((obs_val - expected) ** 2)
             if len(errors) >= 2:
                 rmse = math.sqrt(sum(errors) / len(errors))
                 if best is None or rmse < best["rmse"]:
-                    best = {"rmse": rmse, "matched_points": len(errors), "planting_lag_months": planting_lag}
+                    best = {
+                        "rmse": rmse,
+                        "matched_points": len(errors),
+                        "planting_lag_months": planting_lag,
+                    }
 
         if best is not None:
             coverage = min(1.0, best["matched_points"] / 6.0)
-            score = math.exp(-best["rmse"] / 0.15) * coverage
-            candidates.append({
+            raw_score = math.exp(-best["rmse"] / 0.15) * coverage
+
+            # ── Bayesian posterior = raw_score × district prior ───────────
+            if district_priors is not None:
+                # Crops not in the table get the implausible floor (0.002)
+                prior = district_priors.get(crop, 0.002)
+            else:
+                prior = 1.0   # uniform prior → score unchanged
+
+            posterior = raw_score * prior
+
+            raw_candidates.append({
                 "crop": crop,
-                "score": round(score, 4),
+                "score": round(posterior, 4),
+                "raw_score": round(raw_score, 4),
+                "prior_weight": round(prior, 4),
                 "evidence": {
                     "rmse": round(best["rmse"], 4),
                     "matched_points": best["matched_points"],
@@ -417,8 +593,13 @@ def rank_crops_for_temporal_series(
                 },
             })
 
-    candidates.sort(key=lambda item: (-item["score"], item["crop"]))
-    return candidates[:5]
+    # ── Intercrop heuristic candidates ───────────────────────────────────
+    if district_priors:
+        intercrop = _detect_intercrop_candidates(timeseries, district_priors)
+        raw_candidates.extend(intercrop)
+
+    raw_candidates.sort(key=lambda item: (-item["score"], item["crop"]))
+    return raw_candidates[:5]
 
 
 __all__ = [
@@ -428,5 +609,7 @@ __all__ = [
     "label_temporal_cluster_profile",
     "cluster_field_time_series",
     "rank_crops_for_temporal_series",
+    "_detect_intercrop_candidates",
     "MIN_TEMPORAL_MATCH_SCORE",
+    "CROP_GROUPS",
 ]

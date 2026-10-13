@@ -362,12 +362,69 @@
         transform: none;
       }
 
-      .analysis-period {
-        color: var(--muted);
-        font-size: 0.82rem;
+      .control-group {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 6px 12px;
       }
 
-      @media (max-width: 980px) {
+      .control-label {
+        font-size: 0.76rem;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-weight: 600;
+      }
+
+      .styled-select, .styled-date {
+        background: transparent;
+        border: none;
+        color: var(--text);
+        font-size: 0.85rem;
+        font-family: inherit;
+        outline: none;
+        cursor: pointer;
+      }
+
+      .styled-select option {
+        background: #0d1b24;
+        color: var(--text);
+      }
+
+      .styled-date {
+        color-scheme: dark;
+      }
+
+      .analysis-period {
+        color: var(--cyan);
+        font-size: 0.78rem;
+        font-weight: 500;
+        background: rgba(84, 214, 255, 0.08);
+        border: 1px solid rgba(84, 214, 255, 0.2);
+        border-radius: 8px;
+        padding: 4px 9px;
+        white-space: nowrap;
+      }
+
+      .speed-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 10px;
+        background: rgba(91, 231, 169, 0.12);
+        border: 1px solid rgba(91, 231, 169, 0.3);
+        color: var(--green);
+        border-radius: 999px;
+        font-size: 0.74rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+      }
+
+      @media (max-width: 1100px) {
         .layout {
           grid-template-columns: 1fr;
         }
@@ -383,18 +440,81 @@
     <div class="shell">
       <header class="topbar">
         <div class="brand">
-          <div class="brand-mark">C</div>
+          <div class="brand-mark">🌾</div>
           <div>
             <h1>Maharashtra Crop Classifier</h1>
-            <div class="subheading">Village-level crop intelligence with temporal evidence overlays</div>
+            <div class="subheading">Village-level crop intelligence with Sentinel temporal evidence & district priors</div>
           </div>
         </div>
 
         <div class="actions">
-          <label class="input-wrap">
+          <label class="input-wrap" title="Upload village field boundary GeoJSON">
             <input id="geojsonFile" type="file" accept=".geojson,.json" />
           </label>
+
+          <div class="control-group" title="Select Maharashtra District to activate Bayesian crop priors">
+            <label for="districtSelect" class="control-label">District:</label>
+            <select id="districtSelect" class="styled-select">
+              <option value="Amravati" selected>Amravati (Vidarbha)</option>
+              <option value="Akola">Akola</option>
+              <option value="Yavatmal">Yavatmal</option>
+              <option value="Wardha">Wardha</option>
+              <option value="Nagpur">Nagpur</option>
+              <option value="Buldana">Buldana</option>
+              <option value="Washim">Washim</option>
+              <option value="Chandrapur">Chandrapur</option>
+              <option value="Gadchiroli">Gadchiroli</option>
+              <option value="Bhandara">Bhandara</option>
+              <option value="Gondia">Gondia</option>
+              <option value="Ahmadnagar">Ahmadnagar</option>
+              <option value="Aurangabad">Aurangabad (Chh. Sambhajinagar)</option>
+              <option value="Beed">Beed</option>
+              <option value="Jalna">Jalna</option>
+              <option value="Latur">Latur</option>
+              <option value="Nanded">Nanded</option>
+              <option value="Osmanabad">Osmanabad (Dharashiv)</option>
+              <option value="Parbhani">Parbhani</option>
+              <option value="Hingoli">Hingoli</option>
+              <option value="Dhule">Dhule</option>
+              <option value="Jalgaon">Jalgaon</option>
+              <option value="Nandurbar">Nandurbar</option>
+              <option value="Nasik">Nashik</option>
+              <option value="Kolhapur">Kolhapur</option>
+              <option value="Pune">Pune</option>
+              <option value="Sangali">Sangli</option>
+              <option value="Satara">Satara</option>
+              <option value="Solapur">Solapur</option>
+              <option value="Thane">Thane</option>
+              <option value="Palghar">Palghar</option>
+              <option value="Raigad">Raigad</option>
+              <option value="Ratnagiri">Ratnagiri</option>
+              <option value="Sindhudurg">Sindhudurg</option>
+              <option value="">All Maharashtra (State Avg)</option>
+            </select>
+          </div>
+
+          <div class="control-group" title="Focus analysis on growth season to accelerate extraction">
+            <label for="seasonSelect" class="control-label">Season:</label>
+            <select id="seasonSelect" class="styled-select">
+              <option value="current_kharif" selected>Current Kharif 2026 (Jun 01 – Today) ⚡ Live</option>
+              <option value="current_rabi">Current Rabi 2026-27 (Oct 01 – Today [Early])</option>
+              <option value="latest_rabi">Latest Complete Rabi (Oct 2025 – Mar 2026)</option>
+              <option value="prev_kharif">Previous Complete Kharif (Jun – Nov 2025)</option>
+              <option value="trailing_12">Trailing 12 Months (Oct 2025 – Today)</option>
+              <option value="year_2026">Year-to-Date 2026 (Jan 01 – Today)</option>
+              <option value="custom">Custom Date Range...</option>
+            </select>
+          </div>
+
+          <div id="customDateRange" class="control-group" style="display: none;">
+            <input type="date" id="customStartDate" class="styled-date" value="2026-06-01" />
+            <span style="color: var(--muted); font-size: 0.8rem;">to</span>
+            <input type="date" id="customEndDate" class="styled-date" value="2026-10-13" />
+          </div>
+
           <span id="analysisPeriod" class="analysis-period"></span>
+          <span class="speed-pill">⚡ Fast Point Mode</span>
+
           <button id="runBtn" class="primary">Run classification</button>
           <button id="downloadBtn" class="ghost" disabled>Download results</button>
         </div>
@@ -489,6 +609,7 @@
       const state = {
         map: null,
         geojsonLayer: null,
+        loadedGeojson: null,
         result: null,
         activeFileName: 'village',
         clusterColors: new Map(),
@@ -497,16 +618,62 @@
       };
 
       function getAnalysisPeriod() {
-        const end = new Date();
-        const start = new Date(end);
-        start.setFullYear(start.getFullYear() - 1);
+        const now = new Date();
+        const currentYear = now.getFullYear();
         const format = (date) => {
           const year = date.getFullYear();
           const month = String(date.getMonth() + 1).padStart(2, '0');
           const day = String(date.getDate()).padStart(2, '0');
           return `${year}-${month}-${day}`;
         };
-        return { startDate: format(start), endDate: format(end) };
+        const todayStr = format(now);
+        const season = document.getElementById('seasonSelect')?.value || 'current_kharif';
+
+        if (season === 'current_kharif') {
+          const start = `${currentYear}-06-01`;
+          return { startDate: start, endDate: todayStr, label: `Current Kharif: ${start} to ${todayStr} (Today)` };
+        }
+        if (season === 'current_rabi') {
+          const start = `${currentYear}-10-01`;
+          return { startDate: start, endDate: todayStr, label: `Current Rabi: ${start} to ${todayStr} (Today)` };
+        }
+        if (season === 'latest_rabi') {
+          const start = `${currentYear - 1}-10-01`;
+          const end = `${currentYear}-03-31`;
+          return { startDate: start, endDate: end, label: `Rabi ${currentYear - 1}-${String(currentYear).slice(-2)}: ${start} to ${end}` };
+        }
+        if (season === 'prev_kharif') {
+          const start = `${currentYear - 1}-06-01`;
+          const end = `${currentYear - 1}-11-30`;
+          return { startDate: start, endDate: end, label: `Kharif ${currentYear - 1}: ${start} to ${end}` };
+        }
+        if (season === 'year_2026') {
+          const start = `${currentYear}-01-01`;
+          return { startDate: start, endDate: todayStr, label: `YTD ${currentYear}: ${start} to ${todayStr}` };
+        }
+        if (season === 'custom') {
+          const startVal = document.getElementById('customStartDate')?.value || `${currentYear}-06-01`;
+          const endVal = document.getElementById('customEndDate')?.value || todayStr;
+          return { startDate: startVal, endDate: endVal, label: `Custom: ${startVal} to ${endVal}` };
+        }
+        // Fallback: trailing 12 months
+        const start = new Date(now);
+        start.setFullYear(start.getFullYear() - 1);
+        const sStr = format(start);
+        return { startDate: sStr, endDate: todayStr, label: `Trailing 12m: ${sStr} to ${todayStr}` };
+      }
+
+      function updatePeriodDisplay() {
+        const seasonSelect = document.getElementById('seasonSelect');
+        const customGroup = document.getElementById('customDateRange');
+        if (seasonSelect && customGroup) {
+          customGroup.style.display = seasonSelect.value === 'custom' ? 'flex' : 'none';
+        }
+        const period = getAnalysisPeriod();
+        const periodEl = document.getElementById('analysisPeriod');
+        if (periodEl) {
+          periodEl.textContent = period.label;
+        }
       }
 
       function getClusterColor(clusterId) {
@@ -514,10 +681,28 @@
         return state.clusterColors.get(Number(clusterId)) || '#7c8582';
       }
 
+      function getFieldId(feature, index) {
+        if (!feature) return `field_${index + 1}`;
+        const props = feature.properties || {};
+        return String(
+          props.field_id ??
+          feature.id ??
+          props.fid ??
+          props.FID ??
+          props.id ??
+          props.ID ??
+          `field_${index + 1}`
+        );
+      }
+
       function renderLegend(result = null) {
         const legendList = document.getElementById('legendList');
         const clusters = result?.cluster_summary || [];
         state.clusterColors = new Map(clusters.map((cluster, index) => [Number(cluster.cluster_id ?? cluster.cluster), clusterPalette[index % clusterPalette.length]]));
+        if (!clusters.length) {
+          legendList.innerHTML = '<li class="legend-item" style="color: var(--muted); font-style: italic;">Load a GeoJSON file and run classification to see cluster assignments.</li>';
+          return;
+        }
         legendList.innerHTML = clusters.map((cluster) => `
           <li class="legend-item">
             <span style="display:flex; align-items:center; gap:10px;">
@@ -551,9 +736,9 @@
         const total = Math.max(1, Number(event.total || 1));
         const completed = Math.max(0, Number(event.completed || 0));
         let index = 1;
-        if (event.stage === 'satellite_extraction') index = 2 + 0.8 * completed / total;
+        if (event.stage === 'satellite_extraction') index = 2 + (0.8 * completed) / total;
         if (event.stage === 'temporal_clustering') index = completed ? 3.2 : 3;
-        if (event.stage === 'evidence_labeling') index = 3.4 + 0.5 * completed / total;
+        if (event.stage === 'evidence_labeling') index = 3.4 + (0.5 * completed) / total;
         if (event.stage === 'complete') index = steps.length;
         renderProgress(index, event.message || 'Processing uploaded fields.');
       }
@@ -564,7 +749,7 @@
         document.getElementById('fieldCount').textContent = String(fieldCount);
         document.getElementById('dominantCrop').textContent = result.dominant_crop || '—';
         const coveredFields = Number(result.complete_sensor_field_count ?? 0);
-        document.getElementById('coverageValue').textContent = `${(coveredFields / Math.max(fieldCount, 1) * 100).toFixed(0)}%`;
+        document.getElementById('coverageValue').textContent = `${((coveredFields / Math.max(fieldCount, 1)) * 100).toFixed(0)}%`;
       }
 
       function renderResultsTable(result) {
@@ -600,63 +785,158 @@
 
       function initializeMap() {
         if (state.map) return;
-        state.map = L.map('map', { zoomControl: true, preferCanvas: true }).setView([19.5, 75.3], 7);
-        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-          attribution: 'Tiles &copy; Esri, Maxar, Earthstar Geographics, and the GIS User Community',
+        state.map = L.map('map', { zoomControl: true, preferCanvas: true }).setView([20.0, 77.0], 7);
+        const esriSatellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+          attribution: 'Tiles &copy; Esri, Maxar, Earthstar Geographics',
           maxZoom: 19
-        }).addTo(state.map);
+        });
+        const cartoVoyager = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+          attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+          subdomains: 'abcd',
+          maxZoom: 20
+        });
+        const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; OpenStreetMap contributors',
+          maxZoom: 19
+        });
+        esriSatellite.addTo(state.map);
+        L.control.layers({
+          'Satellite Imagery': esriSatellite,
+          'Street / Voyager': cartoVoyager,
+          'OpenStreetMap': osm
+        }, null, { position: 'topright' }).addTo(state.map);
+
+        setTimeout(() => {
+          if (state.map) state.map.invalidateSize();
+        }, 150);
       }
 
-      function drawFeatureCollection(data, result) {
+      function drawFeatureCollection(data, result = null) {
+        initializeMap();
         if (state.geojsonLayer) {
           state.map.removeLayer(state.geojsonLayer);
+          state.geojsonLayer = null;
         }
 
-        const assignments = new Map((result?.field_predictions || []).map((prediction) => [String(prediction.field_id), prediction]));
+        if (!data) return;
 
-        const features = data.type === 'FeatureCollection' ? data.features : [data];
+        const rawFeatures = data.type === 'FeatureCollection' ? data.features : (Array.isArray(data) ? data : [data]);
+        const features = (rawFeatures || []).filter((f) => f && f.geometry);
+
+        if (!features.length) {
+          console.warn('drawFeatureCollection: No features with geometry found.');
+          return;
+        }
+
         const collection = {
           type: 'FeatureCollection',
-          features: features.filter((feature) => feature && feature.geometry)
+          features
         };
+
+        const assignments = new Map((result?.field_predictions || []).map((prediction) => [String(prediction.field_id), prediction]));
+        const isClassified = Boolean(result && (result.field_predictions || []).length > 0);
 
         const layer = L.geoJSON(collection, {
           style: (feature) => {
-            const props = feature.properties || {};
-            const fieldId = String(props.field_id || feature.id || '');
+            const index = features.indexOf(feature);
+            const fieldId = getFieldId(feature, index);
             const prediction = assignments.get(fieldId);
-            const color = getClusterColor(prediction?.cluster_id);
-            return {
-              color,
-              weight: 2,
-              opacity: 0.9,
-              fillColor: color,
-              fillOpacity: 0.45,
-              dashArray: prediction?.cluster_id === undefined ? '4 6' : null
-            };
+
+            if (isClassified && prediction) {
+              const color = getClusterColor(prediction.cluster_id);
+              return {
+                color: color,
+                weight: 2,
+                opacity: 0.95,
+                fillColor: color,
+                fillOpacity: 0.55
+              };
+            } else if (isClassified) {
+              return {
+                color: '#7c8582',
+                weight: 2,
+                opacity: 0.8,
+                fillColor: '#7c8582',
+                fillOpacity: 0.35,
+                dashArray: '3 5'
+              };
+            } else {
+              return {
+                color: '#54d6ff',
+                weight: 2,
+                opacity: 0.9,
+                fillColor: '#54d6ff',
+                fillOpacity: 0.35
+              };
+            }
           },
           onEachFeature: (feature, layerItem) => {
+            const index = features.indexOf(feature);
+            const fieldId = getFieldId(feature, index);
             const props = feature.properties || {};
-            const fieldId = String(props.field_id || feature.id || 'field');
             const prediction = assignments.get(fieldId);
-            const candidates = (prediction?.top_3_candidates || []).map((item) => `${item.crop} (${Number(item.score).toFixed(2)})`).join('<br>') || 'No crop-age match';
-            layerItem.bindPopup(`
-              <strong>${fieldId}</strong><br>
-              Cluster: ${prediction?.cluster_id ?? 'unassigned'}<br>
-              Evidence label: ${prediction?.cluster_label || 'Satellite data unavailable'}<br>
-              Crop evidence:<br>${candidates}
-            `);
+
+            if (isClassified && prediction) {
+              const candidates = (prediction.top_3_candidates || []).map((item) =>
+                `<b>${item.crop}</b>: ${(Number(item.score) * 100).toFixed(1)}%`
+              ).join('<br>') || 'No crop evidence';
+
+              layerItem.bindPopup(`
+                <div style="font-family: inherit; font-size: 13px; line-height: 1.45; color: #111; min-width: 180px;">
+                  <strong style="font-size: 14px; color: #081a21;">Field: ${fieldId}</strong><br>
+                  <span style="color: #2471a3; font-weight: 600;">Cluster ${prediction.cluster_id ?? '—'}:</span> ${prediction.cluster_label || prediction.temporal_cluster_label || 'Unassigned'}<br>
+                  <strong>Dominant Crop:</strong> ${prediction.best_crop || 'Unknown'} (${((prediction.best_score || 0) * 100).toFixed(1)}%)<br>
+                  <hr style="margin: 6px 0; border: none; border-top: 1px solid #ddd;">
+                  <strong>Top Candidates:</strong><br>${candidates}
+                </div>
+              `);
+            } else {
+              const propSummary = Object.entries(props)
+                .filter(([k]) => k !== 'geometry')
+                .slice(0, 4)
+                .map(([k, v]) => `<b>${k}:</b> ${v}`)
+                .join('<br>');
+
+              layerItem.bindPopup(`
+                <div style="font-family: inherit; font-size: 13px; line-height: 1.45; color: #111; min-width: 160px;">
+                  <strong style="font-size: 14px; color: #081a21;">Field: ${fieldId}</strong><br>
+                  <span style="color: #0b7285; font-weight: 600;">Status: Ready for classification</span>
+                  ${propSummary ? `<hr style="margin: 6px 0; border: none; border-top: 1px solid #ddd;">${propSummary}` : ''}
+                </div>
+              `);
+            }
+
+            layerItem.on({
+              mouseover: (e) => {
+                const target = e.target;
+                target.setStyle({ weight: 3, opacity: 1, fillOpacity: 0.75 });
+                target.bringToFront();
+              },
+              mouseout: (e) => {
+                layer.resetStyle(e.target);
+              }
+            });
           }
         }).addTo(state.map);
 
         state.geojsonLayer = layer;
-        const bounds = layer.getBounds();
-        if (bounds && bounds.isValid && bounds.isValid()) {
-          state.map.fitBounds(bounds, { padding: [18, 18] });
-        }
+
+        setTimeout(() => {
+          if (state.map) {
+            state.map.invalidateSize();
+            try {
+              const bounds = layer.getBounds();
+              if (bounds && bounds.isValid && bounds.isValid()) {
+                state.map.fitBounds(bounds, { padding: [24, 24], maxZoom: 17 });
+              }
+            } catch (err) {
+              console.warn('Error fitting map bounds:', err);
+            }
+          }
+        }, 60);
       }
 
-      async function handleFileUpload(file) {
+      async function loadAndDisplayGeoJson(file) {
         if (!file) return;
         state.activeFileName = file.name.replace(/\.[^/.]+$/, '');
         const text = await file.text();
@@ -669,26 +949,63 @@
         }
 
         if (payload.type !== 'FeatureCollection') {
-          payload = { type: 'FeatureCollection', features: [payload] };
+          payload = { type: 'FeatureCollection', features: Array.isArray(payload) ? payload : [payload] };
         }
 
-        const { startDate, endDate } = getAnalysisPeriod();
+        state.loadedGeojson = payload;
+        state.result = null;
 
-        renderProgress(1);
+        document.getElementById('villageName').textContent = state.activeFileName;
+        const fieldCount = payload.features?.length || 0;
+        document.getElementById('fieldCount').textContent = String(fieldCount);
+        document.getElementById('dominantCrop').textContent = 'Ready to classify';
+        document.getElementById('coverageValue').textContent = '—';
+
+        drawFeatureCollection(payload, null);
+        renderProgress(0, `Loaded ${fieldCount} fields from ${file.name}. Click "Run classification" to begin.`);
+      }
+
+      async function handleFileUpload(file) {
+        if (!file && !state.loadedGeojson) return;
+        let payload = state.loadedGeojson;
+        if (!payload && file) {
+          state.activeFileName = file.name.replace(/\.[^/.]+$/, '');
+          const text = await file.text();
+          try {
+            payload = JSON.parse(text);
+          } catch (error) {
+            alert('The uploaded file is not valid JSON. Please check the GeoJSON content.');
+            return;
+          }
+          if (payload.type !== 'FeatureCollection') {
+            payload = { type: 'FeatureCollection', features: Array.isArray(payload) ? payload : [payload] };
+          }
+          state.loadedGeojson = payload;
+        }
+
+        drawFeatureCollection(payload, null);
+
+        const { startDate, endDate } = getAnalysisPeriod();
+        const districtName = document.getElementById('districtSelect')?.value || '';
+        renderProgress(1, 'Connecting to server and preparing analysis...');
+
         const response = await fetch('/classify-village/stream', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             village_id: state.activeFileName,
+            district_name: districtName,
             fields: payload,
             start_date: startDate,
             end_date: endDate
           })
         });
+
         if (!response.ok) {
           const error = await response.json().catch(() => ({}));
           throw new Error(error.detail || `API request failed (${response.status})`);
         }
+
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
@@ -711,6 +1028,7 @@
           }
           if (done) break;
         }
+
         if (!result) throw new Error('The classification stream ended without a result.');
         state.result = result;
 
@@ -719,6 +1037,7 @@
         renderSummary(result);
         renderResultsTable(result);
         renderProgress(steps.length, 'Clusters, evidence labels, and map assignments are ready.');
+
         if (result.satellite_status !== 'complete') {
           alert(`Satellite time series status: ${result.satellite_status}. Check the API response and Earth Engine credentials before interpreting crop labels.`);
         }
@@ -726,10 +1045,20 @@
         document.getElementById('downloadBtn').disabled = false;
       }
 
+      document.getElementById('geojsonFile').addEventListener('change', async (event) => {
+        const file = event.target.files && event.target.files[0];
+        if (!file) return;
+        try {
+          await loadAndDisplayGeoJson(file);
+        } catch (err) {
+          alert(err.message || 'Failed to read GeoJSON file.');
+        }
+      });
+
       document.getElementById('runBtn').addEventListener('click', async () => {
         const fileInput = document.getElementById('geojsonFile');
         const file = fileInput.files && fileInput.files[0];
-        if (!file) {
+        if (!file && !state.loadedGeojson) {
           alert('Please choose a GeoJSON file first.');
           return;
         }
@@ -763,8 +1092,11 @@
         renderResultsTable(state.result);
       });
 
-      const analysisPeriod = getAnalysisPeriod();
-      document.getElementById('analysisPeriod').textContent = `Trailing 12 months: ${analysisPeriod.startDate} to ${analysisPeriod.endDate}`;
+      document.getElementById('seasonSelect')?.addEventListener('change', updatePeriodDisplay);
+      document.getElementById('customStartDate')?.addEventListener('change', updatePeriodDisplay);
+      document.getElementById('customEndDate')?.addEventListener('change', updatePeriodDisplay);
+
+      updatePeriodDisplay();
       renderProgress(0);
       renderLegend();
       initializeMap();
