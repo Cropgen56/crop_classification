@@ -1,0 +1,10 @@
+crop,index,crop_age,reported_value_or_range,evidence_type,notes,source_url
+Jowar / sorghum (proxy study; Australia),NDVI,54 DAS,0.75,Reported first-flight plot mean,UAV multispectral; not an India/Maharashtra classification study.,https://doi.org/10.3389/fpls.2017.01532
+Jowar / sorghum (proxy study; Australia),NDVI,68-83 DAS,0.72-0.86,Reported peak range across genotypes,Not an exact single-timepoint value; peak timing varied by genotype.,https://doi.org/10.3389/fpls.2017.01532
+Jowar / sorghum (proxy study; Australia),NDVI,133 DAS,0.62-0.67,Reported end-of-experiment range across genotypes,Not an exact single-timepoint value.,https://doi.org/10.3389/fpls.2017.01532
+Jowar / sorghum (proxy study; Australia),NDRE difference peak-to-maturity,Peak to 133 DAS,0.19 senescent; 0.13 stay-green,Group-level decline magnitude,The paper also reports NDRE post-peak slope −0.003/day for senescent lines and −0.002/day for stay-green lines.,https://doi.org/10.3389/fpls.2017.01532
+Rice (external phase-rule study),NDMI,0-30 days,0.10-0.20,Stage-level NDMI range,External rice phase study; not an exact observation series and not calibrated for Maharashtra.,https://acrs-aars.org/proceeding/ACRS2024/AB0142.pdf
+Rice (external phase-rule study),NDMI,30-60 days,0.20-0.30,Stage-level NDMI range,External rice phase study; not an exact observation series and not calibrated for Maharashtra.,https://acrs-aars.org/proceeding/ACRS2024/AB0142.pdf
+Rice (external phase-rule study),NDMI,60-90 days,0.15-0.25,Stage-level NDMI range,External rice phase study; not an exact observation series and not calibrated for Maharashtra.,https://acrs-aars.org/proceeding/ACRS2024/AB0142.pdf
+Rice (external phase-rule study),NDMI,90-120 days,0.10-0.20,Stage-level NDMI range,External rice phase study; not an exact observation series and not calibrated for Maharashtra.,https://acrs-aars.org/proceeding/ACRS2024/AB0142.pdf
+Rice (external phase-rule study),NDMI,>120 days,<0.10,Stage-level NDMI range,External rice phase study; not an exact observation series and not calibrated for Maharashtra.,https://acrs-aars.org/proceeding/ACRS2024/AB0142.pdf
