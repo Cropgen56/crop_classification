@@ -47,26 +47,160 @@ def _monthly_windows(start_date: str, end_date: str) -> list[tuple[str, str, str
 _ee_initialized: bool = False
 
 
-def _initialize_earth_engine(credentials_path: str) -> bool:
+def _resolve_earth_engine_credentials(hint_path: str | None = None) -> tuple[dict[str, Any] | None, str | None]:
+    """
+    Finds and resolves Earth Engine credentials from multiple environments:
+    1. Direct file path or JSON string passed in `hint_path`
+    2. Environment variables: GOOGLE_APPLICATION_CREDENTIALS, GEE_SERVICE_ACCOUNT_KEY, GEE_KEY_JSON, GEE_KEY
+       (supports either a filesystem path OR a raw JSON string from Secret Manager)
+    3. Secret Manager volume mount paths (e.g. /secrets/gee_key.json, /secrets/gee_key, /app/credentials/gee_key.json)
+    4. Local workspace key files (gee_key_*.json, *service-account*.json)
+
+    Returns:
+        (credential_info_dict, resolved_file_path)
+    """
+    def _try_parse_json(text: str) -> dict[str, Any] | None:
+        try:
+            data = json.loads(text.strip())
+            if isinstance(data, dict) and "client_email" in data:
+                return data
+        except Exception:
+            pass
+        return None
+
+    def _write_temp_key(data: dict[str, Any]) -> str:
+        temp_path = Path("/tmp/gee_service_account.json")
+        try:
+            temp_path.write_text(json.dumps(data))
+            return str(temp_path)
+        except Exception as exc:
+            logger.warning("Could not write /tmp/gee_service_account.json: %s", exc)
+            return ""
+
+    # 1. Check hint_path
+    if hint_path:
+        parsed = _try_parse_json(hint_path)
+        if parsed:
+            temp_file = _write_temp_key(parsed)
+            if temp_file:
+                return parsed, temp_file
+        path_obj = Path(hint_path)
+        if path_obj.is_file():
+            try:
+                data = json.loads(path_obj.read_text())
+                if isinstance(data, dict) and "client_email" in data:
+                    return data, str(path_obj)
+            except Exception:
+                pass
+
+    # 2. Check environment variables
+    env_vars = ["GOOGLE_APPLICATION_CREDENTIALS", "GEE_SERVICE_ACCOUNT_KEY", "GEE_KEY_JSON", "GEE_KEY"]
+    for var in env_vars:
+        val = os.environ.get(var)
+        if not val:
+            continue
+        # Raw JSON string in env var (common when Cloud Run binds Secret Manager to env var)
+        parsed = _try_parse_json(val)
+        if parsed:
+            temp_file = _write_temp_key(parsed)
+            if temp_file:
+                logger.info("Loaded Earth Engine key from environment variable %s (raw JSON string).", var)
+                return parsed, temp_file
+        # File path
+        path_obj = Path(val)
+        if path_obj.is_file():
+            try:
+                data = json.loads(path_obj.read_text())
+                if isinstance(data, dict) and "client_email" in data:
+                    logger.info("Loaded Earth Engine key from %s (%s).", var, path_obj)
+                    return data, str(path_obj)
+            except Exception as exc:
+                logger.warning("Failed to parse credentials from %s (%s): %s", var, path_obj, exc)
+
+    # 3. Check standard Secret Manager mount paths
+    secret_mount_candidates = [
+        Path("/secrets/gee_key.json"),
+        Path("/secrets/gee_key"),
+        Path("/secrets/credentials.json"),
+        Path("/secrets/key.json"),
+        Path("/app/credentials/gee_key.json"),
+    ]
+    # Also check any file in /secrets if mounted as directory
+    secrets_dir = Path("/secrets")
+    if secrets_dir.is_dir():
+        for secret_file in secrets_dir.iterdir():
+            if secret_file.is_file() and secret_file not in secret_mount_candidates:
+                secret_mount_candidates.append(secret_file)
+
+    for cand in secret_mount_candidates:
+        if cand.is_file():
+            try:
+                data = json.loads(cand.read_text())
+                if isinstance(data, dict) and "client_email" in data:
+                    logger.info("Discovered Earth Engine secret at mount path %s.", cand)
+                    return data, str(cand)
+            except Exception:
+                continue
+
+    # 4. Check local workspace keys (for local development)
+    root_dir = Path(__file__).resolve().parents[2]
+    local_keys = list(root_dir.glob("gee_key_*.json")) or list(root_dir.glob("*service-account*.json"))
+    for local_key in local_keys:
+        if local_key.is_file():
+            try:
+                data = json.loads(local_key.read_text())
+                if isinstance(data, dict) and "client_email" in data:
+                    logger.info("Using local Earth Engine key: %s", local_key)
+                    return data, str(local_key)
+            except Exception:
+                continue
+
+    return None, None
+
+
+def _initialize_earth_engine(credentials_path: str | None = None) -> bool:
     global _ee_initialized
     if _ee_initialized:
         return True
+
+    credential_info, resolved_path = _resolve_earth_engine_credentials(credentials_path)
+    if not credential_info or not resolved_path:
+        logger.warning(
+            "Earth Engine init skipped: no service account credentials found. "
+            "Mount your secret to /secrets/gee_key.json or set GOOGLE_APPLICATION_CREDENTIALS."
+        )
+        return False
+
+    project_id = ""
     try:
-        credential_info = json.loads(Path(credentials_path).read_text())
-        project_id = os.environ.get("GOOGLE_CLOUD_PROJECT") or credential_info.get("project_id")
+        # Cross-project resolution:
+        # 1. EE_PROJECT_ID or EARTHENGINE_PROJECT (explicit user override)
+        # 2. credential_info["project_id"] (the project where the GEE service account was created)
+        # 3. GOOGLE_CLOUD_PROJECT (Cloud Run hosting project - only as fallback)
+        project_id = (
+            os.environ.get("EE_PROJECT_ID")
+            or os.environ.get("EARTHENGINE_PROJECT")
+            or credential_info.get("project_id")
+            or os.environ.get("GOOGLE_CLOUD_PROJECT")
+        )
         if not project_id:
             logger.warning(
                 "Earth Engine init skipped: no project_id in credentials and "
-                "GOOGLE_CLOUD_PROJECT is not set."
+                "neither EE_PROJECT_ID nor GOOGLE_CLOUD_PROJECT is set."
             )
             return False
-        credentials = ee.ServiceAccountCredentials(credential_info.get("client_email"), credentials_path)
+
+        credentials = ee.ServiceAccountCredentials(credential_info.get("client_email"), resolved_path)
         ee.Initialize(credentials=credentials, project=project_id)
         _ee_initialized = True
-        logger.info("Earth Engine initialised with project '%s'.", project_id)
+        logger.info(
+            "Earth Engine successfully initialized with project '%s' (service account: %s).",
+            project_id,
+            credential_info.get("client_email"),
+        )
         return True
     except Exception as exc:
-        logger.exception("Earth Engine initialisation failed: %s", exc)
+        logger.exception("Earth Engine initialization failed for project '%s': %s", project_id, exc)
         return False
 
 
@@ -206,16 +340,8 @@ def _try_gee_village_profiles(
         except Exception as exc:
             logger.debug("Failed to read cache file %s: %s", cache_file, exc)
 
-    credentials_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
-    if not credentials_path or not os.path.exists(credentials_path):
-        root_dir = Path(__file__).resolve().parents[2]
-        local_keys = list(root_dir.glob("gee_key_*.json")) or list(root_dir.glob("*service-account*.json"))
-        if local_keys:
-            credentials_path = str(local_keys[0])
-            logger.info("Using local Earth Engine key: %s", credentials_path)
-        else:
-            return {}
-    if not _initialize_earth_engine(credentials_path):
+    credential_info, credentials_path = _resolve_earth_engine_credentials()
+    if not credentials_path or not _initialize_earth_engine(credentials_path):
         return {}
 
     try:
@@ -463,9 +589,9 @@ def build_village_field_profiles(
         profile = satellite_profiles.get(index)
         if profile is None:
             profile = _feature_to_profile(feature, index)
-            credentials_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
-            if not credentials_path or not os.path.exists(credentials_path):
-                profile["satellite"]["reason"] = "GOOGLE_APPLICATION_CREDENTIALS is missing or unreadable; no satellite values were substituted."
+            credential_info, _ = _resolve_earth_engine_credentials()
+            if not credential_info:
+                profile["satellite"]["reason"] = "Earth Engine service account credentials are missing or unreadable; no satellite values were substituted."
             else:
                 profile["satellite"]["reason"] = "Earth Engine returned no usable monthly S1/S2 observations; no satellite values were substituted."
         profiles.append(profile)
