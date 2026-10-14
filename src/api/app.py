@@ -71,6 +71,7 @@ class FieldProfileInput(BaseModel):
 class VillageClassificationRequest(BaseModel):
     village_id: str = "unknown"
     district_name: str | None = None
+    taluka_name: str | None = None
     fields: list[FieldProfileInput] | dict[str, Any] = Field(default_factory=list)
     start_date: str = Field(default_factory=_analysis_start_date)
     end_date: str = Field(default_factory=_analysis_end_date)
@@ -115,6 +116,7 @@ def _service_payload(payload: VillageClassificationRequest) -> dict[str, Any]:
     return {
         "village_id": payload.village_id,
         "district_name": payload.district_name or "",
+        "taluka_name": payload.taluka_name or "",
         "fields": [field.model_dump(exclude_none=True) for field in payload.fields]
         if isinstance(payload.fields, list)
         else payload.fields,

@@ -20,6 +20,7 @@ from src.labeling.temporal_clustering import (
 from src.labeling.temporal_reference import canonicalize_crop_name, load_crop_signature_reference
 from src.rules.field_candidate_generator import classify_field_profile
 from src.rules.village_classifier import classify_village
+from src.yield_engine.yield_predictor import predict_field_yield
 
 REQUEST_VERSION = "0.7.0"
 
@@ -109,6 +110,7 @@ def classify_village_request(
 ) -> dict[str, Any]:
     village_id = payload.get("village_id", "unknown")
     district_name: str = str(payload.get("district_name") or "").strip()
+    taluka_name: str = str(payload.get("taluka_name") or payload.get("taluka") or "").strip()
     fields = payload.get("fields", [])
     end_date = payload.get("end_date", date.today().isoformat())
     start_date = payload.get("start_date", (date.today() - timedelta(days=365)).isoformat())
@@ -266,6 +268,27 @@ def classify_village_request(
             for rank, candidate in enumerate(candidates_to_use, start=1)
         ]
 
+    for prediction in field_predictions:
+        field_id = str(prediction.get("field_id"))
+        profile = next((p for p in field_profiles if str(p.get("field_id")) == field_id), {})
+        field_dist = profile.get("district") or district_name or None
+        field_tal = profile.get("taluka") or taluka_name or None
+        field_crop = prediction.get("best_crop")
+        if not field_crop or field_crop == "unknown":
+            field_crop = profile.get("dominant_top_crop") or profile.get("top_crop") or "unknown"
+        area_ha = (
+            profile.get("area_hectares")
+            or (float(profile.get("area_km2", 0.0)) * 100.0 if profile.get("area_km2") else None)
+            or (float(profile.get("area_acres", 0.0)) * 0.404686 if profile.get("area_acres") else None)
+        )
+        prediction["yield_prediction"] = predict_field_yield(
+            crop_name=field_crop,
+            district=field_dist,
+            taluka=field_tal,
+            satellite=profile.get("satellite") if profile else None,
+            field_area_ha=area_ha,
+        )
+
     satellite_field_count = len(satellite_profiles)
     if complete_sensor_field_count == len(field_profiles) and complete_sensor_field_count:
         satellite_status = "complete"
@@ -280,6 +303,39 @@ def classify_village_request(
     }
 
     result = classify_village(village)
+
+    deficits = [
+        p["yield_prediction"]["yield_deficit_pct"]
+        for p in field_predictions
+        if p.get("yield_prediction") and p["yield_prediction"].get("yield_deficit_pct") is not None
+    ]
+    avg_deficit = round(sum(deficits) / len(deficits), 1) if deficits else 0.0
+    prod_losses = [
+        p["yield_prediction"]["production_loss_tonnes"]
+        for p in field_predictions
+        if p.get("yield_prediction", {}).get("production_loss_tonnes") is not None
+    ]
+    total_loss = round(sum(prod_losses), 3) if prod_losses else None
+
+    is_trigger1_area = any(
+        p.get("yield_prediction", {}).get("is_trigger1_drought_taluka", False)
+        for p in field_predictions
+    )
+
+    drought_assessment = {
+        "is_trigger1_drought_area": is_trigger1_area,
+        "district": district_name or None,
+        "taluka": taluka_name or None,
+        "average_yield_deficit_pct": avg_deficit,
+        "total_production_loss_tonnes": total_loss,
+        "damage_breakdown": {
+            "severe": sum(1 for p in field_predictions if p.get("yield_prediction", {}).get("damage_category") == "Severe Crop Failure"),
+            "substantial": sum(1 for p in field_predictions if p.get("yield_prediction", {}).get("damage_category") == "Substantial Loss"),
+            "moderate": sum(1 for p in field_predictions if p.get("yield_prediction", {}).get("damage_category") == "Moderate Deficit"),
+            "normal": sum(1 for p in field_predictions if p.get("yield_prediction", {}).get("damage_category") == "Normal / Minor Variation"),
+        },
+    }
+
     response = {
         "request_version": REQUEST_VERSION,
         "village_id": village_id,
@@ -298,6 +354,7 @@ def classify_village_request(
         "temporal_period": {"start_date": start_date, "end_date": end_date},
         "satellite_field_count": satellite_field_count,
         "complete_sensor_field_count": complete_sensor_field_count,
+        "drought_assessment": drought_assessment,
     }
     if satellite_field_count and cluster_summary:
         dominant_cluster = max(cluster_summary, key=lambda item: item["cluster_count"])
