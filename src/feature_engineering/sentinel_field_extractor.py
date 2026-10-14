@@ -285,18 +285,21 @@ def _feature_to_profile(feature: dict[str, Any], index: int) -> dict[str, Any]:
         profile["centroid_lon"] = None
         profile["centroid_lat"] = None
 
-    profile["satellite"] = {
-        "source": "unavailable",
-        "timeseries": [],
-        "reason": "Sentinel observations were not fetched; no satellite values are being substituted.",
-        "ndvi_mean": None,
-        "ndre_mean": None,
-        "gndvi_mean": None,
-        "evi_mean": None,
-        "ndmi_mean": None,
-        "s1_vv_mean": None,
-        "s1_vh_mean": None,
-    }
+    if isinstance(feature.get("satellite"), dict) and feature["satellite"].get("timeseries"):
+        profile["satellite"] = dict(feature["satellite"])
+    else:
+        profile["satellite"] = {
+            "source": "unavailable",
+            "timeseries": [],
+            "reason": "Sentinel observations were not fetched; no satellite values are being substituted.",
+            "ndvi_mean": None,
+            "ndre_mean": None,
+            "gndvi_mean": None,
+            "evi_mean": None,
+            "ndmi_mean": None,
+            "s1_vv_mean": None,
+            "s1_vh_mean": None,
+        }
 
     profile.update({key: value for key, value in properties.items() if key not in profile and key not in {"field_id"}})
     return profile

@@ -3,7 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Maharashtra Crop Classifier</title>
+    <title>Maharashtra Crop Classifier & AI Yield Prediction | 2026 Drought Assessment</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -12,18 +18,21 @@
     />
     <style>
       :root {
-        --bg: #081a21;
-        --panel: rgba(15, 26, 35, 0.9);
-        --panel-soft: rgba(21, 34, 44, 0.9);
-        --line: rgba(173, 216, 230, 0.15);
-        --text: #edf7ff;
-        --muted: #b5c9d7;
-        --green: #5be7a9;
-        --cyan: #54d6ff;
-        --amber: #f8d574;
-        --rose: #ff8ea1;
-        --purple: #a88dff;
-        --shadow: 0 18px 36px rgba(0, 0, 0, 0.22);
+        --bg: #07131a;
+        --panel: rgba(13, 24, 33, 0.92);
+        --panel-card: rgba(18, 33, 46, 0.7);
+        --line: rgba(84, 214, 255, 0.16);
+        --line-subtle: rgba(255, 255, 255, 0.08);
+        --text: #f0f7fc;
+        --muted: #9ab4c7;
+        --cyan: #46d1ff;
+        --green: #40e099;
+        --amber: #f8c146;
+        --rose: #ff5478;
+        --purple: #ae87ff;
+        --shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+        --danger-glow: 0 0 18px rgba(255, 84, 120, 0.35);
+        --success-glow: 0 0 18px rgba(64, 224, 153, 0.3);
       }
 
       * { box-sizing: border-box; }
@@ -32,352 +41,107 @@
         margin: 0;
         min-height: 100%;
         background:
-          radial-gradient(circle at top, rgba(84, 214, 255, 0.18), transparent 30%),
-          linear-gradient(180deg, #06141b 0%, #081a21 100%);
+          radial-gradient(circle at 15% 0%, rgba(70, 209, 255, 0.14), transparent 35%),
+          radial-gradient(circle at 85% 10%, rgba(255, 84, 120, 0.09), transparent 30%),
+          linear-gradient(180deg, #051016 0%, #07141c 100%);
         color: var(--text);
-        font-family: Inter, "Segoe UI", Arial, sans-serif;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       }
 
       body {
-        padding: 24px;
+        padding: 20px 24px 36px;
       }
 
       .shell {
-        max-width: 1500px;
+        max-width: 1680px;
         margin: 0 auto;
       }
 
+      /* Topbar Navigation */
       .topbar {
-        background: rgba(10, 18, 24, 0.8);
+        background: rgba(11, 20, 27, 0.88);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
         border: 1px solid var(--line);
-        border-radius: 18px;
-        padding: 18px 20px;
+        border-radius: 20px;
+        padding: 18px 22px;
         box-shadow: var(--shadow);
         display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 20px;
         margin-bottom: 22px;
+        flex-wrap: wrap;
       }
 
       .brand {
         display: flex;
         align-items: center;
-        gap: 14px;
+        gap: 16px;
       }
 
       .brand-mark {
-        width: 42px;
-        height: 42px;
-        border-radius: 12px;
-        background: linear-gradient(135deg, var(--green), var(--cyan));
+        width: 48px;
+        height: 48px;
+        border-radius: 14px;
+        background: linear-gradient(135deg, #40e099 0%, #46d1ff 100%);
         display: grid;
         place-items: center;
-        color: #052a2e;
-        font-weight: 700;
-        font-size: 1.2rem;
+        color: #032025;
+        font-weight: 800;
+        font-size: 1.45rem;
+        box-shadow: 0 8px 18px rgba(70, 209, 255, 0.28);
       }
 
       h1 {
-        font-size: clamp(1.5rem, 2vw, 2.4rem);
+        font-family: 'Outfit', sans-serif;
+        font-size: clamp(1.4rem, 2vw, 2.1rem);
         margin: 0;
-        letter-spacing: -0.03em;
+        letter-spacing: -0.02em;
+        font-weight: 700;
+        background: linear-gradient(120deg, #ffffff 40%, var(--cyan) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
       }
 
       .subheading {
         color: var(--muted);
         margin-top: 4px;
-        font-size: 0.9rem;
+        font-size: 0.86rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
       }
 
       .actions {
         display: flex;
-        gap: 12px;
+        gap: 10px;
         align-items: center;
         flex-wrap: wrap;
-      }
-
-      .input-wrap {
-        position: relative;
-        overflow: hidden;
-        border-radius: 12px;
-        border: 1px solid var(--line);
-        background: rgba(255, 255, 255, 0.03);
-        padding: 8px 12px;
-      }
-
-      input[type="file"] {
-        color: var(--muted);
-        cursor: pointer;
-      }
-
-      button {
-        border: none;
-        border-radius: 12px;
-        padding: 10px 18px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: transform 0.18s ease, opacity 0.18s ease;
-      }
-
-      button:hover { transform: translateY(-1px); }
-
-      .primary {
-        background: linear-gradient(135deg, var(--green), var(--cyan));
-        color: #0a1f27;
-      }
-
-      .ghost {
-        background: rgba(255, 255, 255, 0.04);
-        border: 1px solid var(--line);
-        color: var(--text);
-      }
-
-      .layout {
-        display: grid;
-        grid-template-columns: 420px 1fr;
-        gap: 22px;
-      }
-
-      .panel {
-        background: var(--panel);
-        border: 1px solid var(--line);
-        border-radius: 20px;
-        box-shadow: var(--shadow);
-      }
-
-      .sidebar {
-        padding: 20px;
-      }
-
-      .section-label {
-        display: inline-block;
-        padding: 6px 10px;
-        background: rgba(84, 214, 255, 0.08);
-        border: 1px solid rgba(84, 214, 255, 0.18);
-        color: var(--cyan);
-        border-radius: 999px;
-        font-size: 0.72rem;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        margin-bottom: 14px;
-      }
-
-      .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 12px;
-        margin-top: 16px;
-      }
-
-      .stat-card {
-        background: rgba(255,255,255,0.025);
-        border: 1px solid var(--line);
-        border-radius: 14px;
-        padding: 14px 12px;
-      }
-
-      .stat-card .label {
-        color: var(--muted);
-        font-size: 0.75rem;
-        margin-bottom: 8px;
-      }
-
-      .stat-card .value {
-        font-size: clamp(1.05rem, 1.8vw, 1.5rem);
-        font-weight: 700;
-      }
-
-      .progress-box {
-        margin-top: 20px;
-        padding-top: 18px;
-        border-top: 1px solid var(--line);
-      }
-
-      .progress-bar {
-        width: 100%;
-        height: 12px;
-        background: rgba(255,255,255,0.06);
-        border-radius: 999px;
-        overflow: hidden;
-        margin-bottom: 12px;
-      }
-
-      .progress-fill {
-        width: 0%;
-        height: 100%;
-        background: linear-gradient(90deg, var(--green), var(--cyan));
-        border-radius: inherit;
-        transition: width 0.35s ease;
-      }
-
-      .step-list {
-        list-style: none;
-        margin: 0;
-        padding: 0;
-        display: grid;
-        gap: 10px;
-      }
-
-      .step {
-        display: grid;
-        grid-template-columns: 12px 1fr;
-        gap: 10px;
-        align-items: start;
-        padding: 10px 12px;
-        border-radius: 12px;
-        border: 1px solid transparent;
-        background: rgba(255,255,255,0.02);
-      }
-
-      .step.pending { opacity: 0.7; }
-      .step.active { border-color: rgba(84,214,255,0.4); background: rgba(84,214,255,0.06); }
-      .step.done { border-color: rgba(91,231,169,0.35); background: rgba(91,231,169,0.06); }
-
-      .dot {
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-        margin-top: 6px;
-        background: rgba(255,255,255,0.26);
-      }
-
-      .step.done .dot { background: var(--green); }
-      .step.active .dot { background: var(--cyan); box-shadow: 0 0 12px rgba(84,214,255,0.9); }
-
-      .step h4 {
-        margin: 0 0 3px;
-        font-size: 0.92rem;
-      }
-
-      .step p {
-        margin: 0;
-        color: var(--muted);
-        font-size: 0.8rem;
-      }
-
-      .legend-box {
-        margin-top: 20px;
-        padding-top: 18px;
-        border-top: 1px solid var(--line);
-      }
-
-      .legend-list {
-        list-style: none;
-        padding: 0;
-        margin: 14px 0 0;
-        display: grid;
-        gap: 8px;
-      }
-
-      .legend-item {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 10px;
-        color: var(--muted);
-        font-size: 0.82rem;
-      }
-
-      .swatch {
-        width: 14px;
-        height: 14px;
-        border-radius: 999px;
-        display: inline-block;
-        border: 1px solid rgba(255,255,255,0.4);
-      }
-
-      .map-panel {
-        min-height: 640px;
-        overflow: hidden;
-      }
-
-      #map {
-        width: 100%;
-        height: 640px;
-        background: rgba(12, 25, 31, 0.6);
-      }
-
-      .table-panel {
-        margin-top: 22px;
-        padding: 18px 18px 12px;
-      }
-
-      .table-wrap {
-        max-height: 520px;
-        overflow: auto;
-        border-bottom: 1px solid var(--line);
-      }
-
-      table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: 8px;
-      }
-
-      th, td {
-        text-align: left;
-        padding: 12px 10px;
-        border-bottom: 1px solid var(--line);
-        color: var(--text);
-      }
-
-      th {
-        position: sticky;
-        top: 0;
-        z-index: 1;
-        background: #10232c;
-        color: var(--muted);
-        font-weight: 600;
-        font-size: 0.76rem;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
-      }
-
-      .tag {
-        display: inline-flex;
-        align-items: center;
-        padding: 4px 8px;
-        border-radius: 999px;
-        font-size: 0.72rem;
-        font-weight: 700;
-        background: rgba(84,214,255,0.08);
-        border: 1px solid rgba(84,214,255,0.2);
-        color: var(--cyan);
-      }
-
-      .table-controls {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        padding-top: 12px;
-        color: var(--muted);
-        font-size: 0.84rem;
-      }
-
-      .table-controls button:disabled {
-        cursor: not-allowed;
-        opacity: 0.45;
-        transform: none;
       }
 
       .control-group {
         display: flex;
         align-items: center;
         gap: 6px;
-        background: rgba(255, 255, 255, 0.03);
+        background: rgba(255, 255, 255, 0.04);
         border: 1px solid var(--line);
         border-radius: 12px;
         padding: 6px 12px;
+        transition: border-color 0.2s ease, background 0.2s ease;
+      }
+
+      .control-group:hover, .control-group:focus-within {
+        border-color: rgba(70, 209, 255, 0.45);
+        background: rgba(70, 209, 255, 0.06);
       }
 
       .control-label {
-        font-size: 0.76rem;
+        font-size: 0.72rem;
         color: var(--muted);
         text-transform: uppercase;
-        letter-spacing: 0.05em;
-        font-weight: 600;
+        letter-spacing: 0.06em;
+        font-weight: 700;
       }
 
       .styled-select, .styled-date {
@@ -386,6 +150,7 @@
         color: var(--text);
         font-size: 0.85rem;
         font-family: inherit;
+        font-weight: 500;
         outline: none;
         cursor: pointer;
       }
@@ -399,36 +164,543 @@
         color-scheme: dark;
       }
 
-      .analysis-period {
-        color: var(--cyan);
-        font-size: 0.78rem;
-        font-weight: 500;
-        background: rgba(84, 214, 255, 0.08);
-        border: 1px solid rgba(84, 214, 255, 0.2);
-        border-radius: 8px;
-        padding: 4px 9px;
-        white-space: nowrap;
+      .input-wrap {
+        position: relative;
+        overflow: hidden;
+        border-radius: 12px;
+        border: 1px dashed var(--line);
+        background: rgba(255, 255, 255, 0.03);
+        padding: 6px 12px;
+        cursor: pointer;
+        transition: all 0.2s ease;
       }
 
-      .speed-pill {
+      .input-wrap:hover {
+        border-color: var(--cyan);
+        background: rgba(70, 209, 255, 0.05);
+      }
+
+      input[type="file"] {
+        color: var(--muted);
+        font-size: 0.82rem;
+        cursor: pointer;
+      }
+
+      button {
+        font-family: inherit;
+        border: none;
+        border-radius: 12px;
+        padding: 9px 18px;
+        font-weight: 600;
+        font-size: 0.86rem;
+        cursor: pointer;
         display: inline-flex;
         align-items: center;
-        gap: 5px;
-        padding: 4px 10px;
-        background: rgba(91, 231, 169, 0.12);
-        border: 1px solid rgba(91, 231, 169, 0.3);
-        color: var(--green);
+        gap: 8px;
+        transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+      }
+
+      button:hover:not(:disabled) {
+        transform: translateY(-1.5px);
+      }
+
+      .primary {
+        background: linear-gradient(135deg, #40e099, #46d1ff);
+        color: #042028;
+        box-shadow: 0 4px 16px rgba(70, 209, 255, 0.28);
+      }
+
+      .primary:hover:not(:disabled) {
+        box-shadow: 0 6px 22px rgba(70, 209, 255, 0.45);
+      }
+
+      .ghost {
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid var(--line);
+        color: var(--text);
+      }
+
+      .ghost:hover:not(:disabled) {
+        background: rgba(255, 255, 255, 0.08);
+        border-color: var(--cyan);
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 11px;
         border-radius: 999px;
         font-size: 0.74rem;
         font-weight: 600;
-        letter-spacing: 0.02em;
+        white-space: nowrap;
       }
 
-      @media (max-width: 1100px) {
+      .pill-drought {
+        background: rgba(255, 84, 120, 0.14);
+        border: 1px solid rgba(255, 84, 120, 0.35);
+        color: #ff7f99;
+        animation: pulseDrought 2.5s infinite;
+      }
+
+      @keyframes pulseDrought {
+        0%, 100% { box-shadow: 0 0 0 rgba(255, 84, 120, 0); }
+        50% { box-shadow: 0 0 12px rgba(255, 84, 120, 0.4); }
+      }
+
+      .pill-speed {
+        background: rgba(64, 224, 153, 0.12);
+        border: 1px solid rgba(64, 224, 153, 0.3);
+        color: var(--green);
+      }
+
+      /* Dashboard Layout */
+      .layout {
+        display: grid;
+        grid-template-columns: 430px 1fr;
+        gap: 22px;
+      }
+
+      .panel {
+        background: var(--panel);
+        backdrop-filter: blur(12px);
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        box-shadow: var(--shadow);
+      }
+
+      .sidebar {
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+      }
+
+      .section-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        background: rgba(70, 209, 255, 0.08);
+        border: 1px solid rgba(70, 209, 255, 0.22);
+        color: var(--cyan);
+        border-radius: 999px;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+
+      /* Executive Drought Assessment Card */
+      .drought-hero-card {
+        background: linear-gradient(145deg, rgba(255, 84, 120, 0.12) 0%, rgba(18, 33, 46, 0.8) 100%);
+        border: 1px solid rgba(255, 84, 120, 0.35);
+        border-radius: 16px;
+        padding: 16px;
+        box-shadow: var(--danger-glow);
+        position: relative;
+        overflow: hidden;
+      }
+
+      .drought-hero-card::after {
+        content: "";
+        position: absolute;
+        top: 0; right: 0;
+        width: 120px; height: 120px;
+        background: radial-gradient(circle, rgba(255, 84, 120, 0.2), transparent 70%);
+        pointer-events: none;
+      }
+
+      .drought-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+      }
+
+      .drought-badge {
+        font-size: 0.75rem;
+        font-weight: 700;
+        padding: 4px 9px;
+        border-radius: 8px;
+        background: rgba(255, 84, 120, 0.2);
+        border: 1px solid rgba(255, 84, 120, 0.4);
+        color: #ff9fb4;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+
+      .drought-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+        margin-top: 10px;
+      }
+
+      .drought-metric {
+        background: rgba(10, 20, 28, 0.7);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
+        padding: 10px;
+      }
+
+      .drought-metric .lbl {
+        color: var(--muted);
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin-bottom: 4px;
+      }
+
+      .drought-metric .val {
+        font-family: 'Outfit', sans-serif;
+        font-size: 1.25rem;
+        font-weight: 700;
+      }
+
+      .val-deficit {
+        color: #ff5478;
+        text-shadow: 0 0 10px rgba(255, 84, 120, 0.5);
+      }
+
+      .val-loss {
+        color: #f8c146;
+      }
+
+      /* Damage Distribution Segment Bar */
+      .damage-bar-wrap {
+        margin-top: 14px;
+      }
+
+      .damage-bar-wrap .lbl-row {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.72rem;
+        color: var(--muted);
+        margin-bottom: 6px;
+      }
+
+      .damage-bar {
+        display: flex;
+        height: 10px;
+        border-radius: 999px;
+        overflow: hidden;
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      .seg-severe { background: #ff4d6d; }
+      .seg-substantial { background: #ff9233; }
+      .seg-moderate { background: #facc15; }
+      .seg-normal { background: #22c55e; }
+
+      /* Summary stats */
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+      }
+
+      .stat-card {
+        background: var(--panel-card);
+        border: 1px solid var(--line-subtle);
+        border-radius: 14px;
+        padding: 12px 14px;
+      }
+
+      .stat-card .label {
+        color: var(--muted);
+        font-size: 0.74rem;
+        margin-bottom: 6px;
+      }
+
+      .stat-card .value {
+        font-family: 'Outfit', sans-serif;
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: #fff;
+      }
+
+      /* Progress Bar */
+      .progress-box {
+        border-top: 1px solid var(--line-subtle);
+        padding-top: 16px;
+      }
+
+      .progress-bar {
+        width: 100%;
+        height: 8px;
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 999px;
+        overflow: hidden;
+        margin: 10px 0 12px;
+      }
+
+      .progress-fill {
+        width: 0%;
+        height: 100%;
+        background: linear-gradient(90deg, #40e099, #46d1ff);
+        border-radius: inherit;
+        transition: width 0.35s ease;
+      }
+
+      .step-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 8px;
+      }
+
+      .step {
+        display: grid;
+        grid-template-columns: 10px 1fr;
+        gap: 10px;
+        align-items: start;
+        padding: 8px 10px;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.02);
+      }
+
+      .step.active {
+        border: 1px solid rgba(70, 209, 255, 0.35);
+        background: rgba(70, 209, 255, 0.08);
+      }
+
+      .step.done {
+        border: 1px solid rgba(64, 224, 153, 0.3);
+        background: rgba(64, 224, 153, 0.05);
+      }
+
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-top: 6px;
+        background: rgba(255, 255, 255, 0.3);
+      }
+
+      .step.done .dot { background: var(--green); }
+      .step.active .dot { background: var(--cyan); box-shadow: 0 0 10px var(--cyan); }
+
+      .step h4 {
+        margin: 0 0 2px;
+        font-size: 0.84rem;
+        font-weight: 600;
+      }
+
+      .step p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.74rem;
+      }
+
+      /* Map Container */
+      .map-panel {
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        min-height: 680px;
+        position: relative;
+      }
+
+      .map-header-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 18px;
+        background: rgba(11, 20, 27, 0.9);
+        border-bottom: 1px solid var(--line-subtle);
+        z-index: 10;
+      }
+
+      .map-mode-toggle {
+        display: flex;
+        background: rgba(255, 255, 255, 0.06);
+        border-radius: 10px;
+        padding: 3px;
+        border: 1px solid var(--line-subtle);
+      }
+
+      .map-mode-btn {
+        background: transparent;
+        color: var(--muted);
+        border-radius: 8px;
+        padding: 6px 14px;
+        font-size: 0.78rem;
+        font-weight: 600;
+      }
+
+      .map-mode-btn.active {
+        background: linear-gradient(135deg, rgba(70, 209, 255, 0.25), rgba(64, 224, 153, 0.2));
+        color: #fff;
+        border: 1px solid rgba(70, 209, 255, 0.4);
+      }
+
+      #map {
+        width: 100%;
+        flex: 1;
+        min-height: 620px;
+        background: #09151c;
+      }
+
+      /* Legend Box */
+      .legend-box {
+        border-top: 1px solid var(--line-subtle);
+        padding-top: 14px;
+      }
+
+      .legend-list {
+        list-style: none;
+        padding: 0;
+        margin: 10px 0 0;
+        display: grid;
+        gap: 6px;
+      }
+
+      .legend-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        color: var(--muted);
+        font-size: 0.78rem;
+      }
+
+      .swatch {
+        width: 12px;
+        height: 12px;
+        border-radius: 4px;
+        display: inline-block;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+      }
+
+      /* Results Table */
+      .table-panel {
+        margin-top: 24px;
+        padding: 20px;
+      }
+
+      .table-header-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+
+      .search-box {
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 6px 14px;
+        color: #fff;
+        font-size: 0.84rem;
+        outline: none;
+        width: 240px;
+      }
+
+      .search-box:focus {
+        border-color: var(--cyan);
+      }
+
+      .table-wrap {
+        max-height: 520px;
+        overflow: auto;
+        border-radius: 12px;
+        border: 1px solid var(--line-subtle);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      th, td {
+        text-align: left;
+        padding: 11px 14px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        font-size: 0.83rem;
+      }
+
+      th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background: #0d1e28;
+        color: var(--muted);
+        font-weight: 700;
+        font-size: 0.74rem;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+
+      tbody tr:hover {
+        background: rgba(70, 209, 255, 0.04);
+      }
+
+      /* Severity Badges */
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 3px 8px;
+        border-radius: 999px;
+        font-size: 0.73rem;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+
+      .badge-severe {
+        background: rgba(255, 77, 109, 0.16);
+        border: 1px solid rgba(255, 77, 109, 0.45);
+        color: #ff6e8a;
+      }
+
+      .badge-substantial {
+        background: rgba(255, 146, 51, 0.16);
+        border: 1px solid rgba(255, 146, 51, 0.45);
+        color: #ffa657;
+      }
+
+      .badge-moderate {
+        background: rgba(250, 204, 21, 0.15);
+        border: 1px solid rgba(250, 204, 21, 0.45);
+        color: #fde047;
+      }
+
+      .badge-normal {
+        background: rgba(34, 197, 94, 0.15);
+        border: 1px solid rgba(34, 197, 94, 0.4);
+        color: #4ade80;
+      }
+
+      .deficit-pill {
+        font-family: 'Outfit', sans-serif;
+        font-weight: 700;
+        font-size: 0.85rem;
+      }
+
+      .deficit-negative {
+        color: #ff5478;
+      }
+
+      .deficit-safe {
+        color: #40e099;
+      }
+
+      .table-controls {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 14px;
+        color: var(--muted);
+        font-size: 0.82rem;
+      }
+
+      @media (max-width: 1200px) {
         .layout {
           grid-template-columns: 1fr;
         }
-
         .topbar {
           flex-direction: column;
           align-items: stretch;
@@ -442,66 +714,72 @@
         <div class="brand">
           <div class="brand-mark">🌾</div>
           <div>
-            <h1>Maharashtra Crop Classifier</h1>
-            <div class="subheading">Village-level crop intelligence with Sentinel temporal evidence & district priors</div>
+            <h1>Maharashtra Crop Classifier & Yield Prediction</h1>
+            <div class="subheading">
+              <span>Sentinel-1 SAR & Sentinel-2 Optical AI Engine</span>
+              <span>·</span>
+              <span id="trigger1Badge" class="pill pill-drought">🚨 2026 Drought Active · 265 Talukas (74%)</span>
+            </div>
           </div>
         </div>
 
         <div class="actions">
-          <label class="input-wrap" title="Upload village field boundary GeoJSON">
-            <input id="geojsonFile" type="file" accept=".geojson,.json" />
-          </label>
-
-          <div class="control-group" title="Select Maharashtra District to activate Bayesian crop priors">
+          <!-- District Selector -->
+          <div class="control-group" title="Select Maharashtra District">
             <label for="districtSelect" class="control-label">District:</label>
             <select id="districtSelect" class="styled-select">
-              <option value="Amravati" selected>Amravati (Vidarbha)</option>
+              <option value="Beed" selected>Beed (Marathwada)</option>
+              <option value="Amravati">Amravati (Vidarbha)</option>
+              <option value="Yavatmal">Yavatmal (Vidarbha)</option>
+              <option value="Jalgaon">Jalgaon (North MH)</option>
+              <option value="Nashik">Nashik</option>
               <option value="Akola">Akola</option>
-              <option value="Yavatmal">Yavatmal</option>
+              <option value="Buldana">Buldana</option>
+              <option value="Jalna">Jalna</option>
+              <option value="Parbhani">Parbhani</option>
+              <option value="Latur">Latur</option>
+              <option value="Osmanabad">Dharashiv (Osmanabad)</option>
+              <option value="Aurangabad">Chh. Sambhajinagar</option>
+              <option value="Solapur">Solapur</option>
+              <option value="Nanded">Nanded</option>
               <option value="Wardha">Wardha</option>
               <option value="Nagpur">Nagpur</option>
-              <option value="Buldana">Buldana</option>
-              <option value="Washim">Washim</option>
+              <option value="Ahmadnagar">Ahilyanagar (Ahmednagar)</option>
+              <option value="Pune">Pune</option>
+              <option value="Kolhapur">Kolhapur</option>
+              <option value="Sangali">Sangli</option>
+              <option value="Satara">Satara</option>
+              <option value="Dhule">Dhule</option>
+              <option value="Nandurbar">Nandurbar</option>
               <option value="Chandrapur">Chandrapur</option>
               <option value="Gadchiroli">Gadchiroli</option>
               <option value="Bhandara">Bhandara</option>
               <option value="Gondia">Gondia</option>
-              <option value="Ahmadnagar">Ahmadnagar</option>
-              <option value="Aurangabad">Aurangabad (Chh. Sambhajinagar)</option>
-              <option value="Beed">Beed</option>
-              <option value="Jalna">Jalna</option>
-              <option value="Latur">Latur</option>
-              <option value="Nanded">Nanded</option>
-              <option value="Osmanabad">Osmanabad (Dharashiv)</option>
-              <option value="Parbhani">Parbhani</option>
+              <option value="Washim">Washim</option>
               <option value="Hingoli">Hingoli</option>
-              <option value="Dhule">Dhule</option>
-              <option value="Jalgaon">Jalgaon</option>
-              <option value="Nandurbar">Nandurbar</option>
-              <option value="Nasik">Nashik</option>
-              <option value="Kolhapur">Kolhapur</option>
-              <option value="Pune">Pune</option>
-              <option value="Sangali">Sangli</option>
-              <option value="Satara">Satara</option>
-              <option value="Solapur">Solapur</option>
-              <option value="Thane">Thane</option>
-              <option value="Palghar">Palghar</option>
               <option value="Raigad">Raigad</option>
               <option value="Ratnagiri">Ratnagiri</option>
               <option value="Sindhudurg">Sindhudurg</option>
-              <option value="">All Maharashtra (State Avg)</option>
+              <option value="Palghar">Palghar</option>
+              <option value="Thane">Thane</option>
             </select>
           </div>
 
-          <div class="control-group" title="Focus analysis on growth season to accelerate extraction">
+          <!-- Taluka Selector -->
+          <div class="control-group" title="Select Taluka to verify Trigger-1 drought status and yield anchors">
+            <label for="talukaSelect" class="control-label">Taluka:</label>
+            <select id="talukaSelect" class="styled-select">
+              <option value="Kaij">Kaij [Trigger-1 🚨]</option>
+            </select>
+          </div>
+
+          <!-- Season Selector -->
+          <div class="control-group" title="Analysis Season">
             <label for="seasonSelect" class="control-label">Season:</label>
             <select id="seasonSelect" class="styled-select">
-              <option value="current_kharif" selected>Current Kharif 2026 (Jun 01 – Today) ⚡ Live</option>
-              <option value="current_rabi">Current Rabi 2026-27 (Oct 01 – Today [Early])</option>
-              <option value="latest_rabi">Latest Complete Rabi (Oct 2025 – Mar 2026)</option>
-              <option value="prev_kharif">Previous Complete Kharif (Jun – Nov 2025)</option>
-              <option value="trailing_12">Trailing 12 Months (Oct 2025 – Today)</option>
-              <option value="year_2026">Year-to-Date 2026 (Jan 01 – Today)</option>
+              <option value="current_kharif" selected>Current Kharif 2026 (Live ⚡)</option>
+              <option value="prev_kharif">Previous Kharif 2025</option>
+              <option value="trailing_12">Trailing 12 Months</option>
               <option value="custom">Custom Date Range...</option>
             </select>
           </div>
@@ -509,77 +787,154 @@
           <div id="customDateRange" class="control-group" style="display: none;">
             <input type="date" id="customStartDate" class="styled-date" value="2026-06-01" />
             <span style="color: var(--muted); font-size: 0.8rem;">to</span>
-            <input type="date" id="customEndDate" class="styled-date" value="2026-10-13" />
+            <input type="date" id="customEndDate" class="styled-date" value="2026-10-14" />
           </div>
 
-          <span id="analysisPeriod" class="analysis-period"></span>
-          <span class="speed-pill">⚡ Fast Point Mode</span>
+          <!-- Upload and Quick Test -->
+          <label class="input-wrap" title="Upload custom field GeoJSON">
+            <input id="geojsonFile" type="file" accept=".geojson,.json" />
+          </label>
 
-          <button id="runBtn" class="primary">Run classification</button>
-          <button id="downloadBtn" class="ghost" disabled>Download results</button>
+          <button id="sampleBtn" class="ghost" title="Load real test field boundaries from Amravati / Vidarbha">
+            📂 Load Sample Fields
+          </button>
+
+          <button id="runBtn" class="primary">
+            🚀 Run Classification & Yield AI
+          </button>
+
+          <button id="downloadBtn" class="ghost" disabled>
+            📥 Download JSON
+          </button>
         </div>
       </header>
 
       <div class="layout">
+        <!-- Sidebar Controls & Metrics -->
         <aside class="panel sidebar">
-          <div class="section-label">Summary</div>
+          <!-- Executive Drought Hero Card -->
+          <div class="drought-hero-card">
+            <div class="drought-header">
+              <div class="section-label">2026 Drought & Yield Impact</div>
+              <span id="talukaDroughtBadge" class="drought-badge">Trigger-1 Active</span>
+            </div>
+            <div style="font-size: 0.78rem; color: #ffbfcf; margin-bottom: 6px;">
+              <strong id="droughtTalukaHeading">Kaij, Beed</strong> · G.O. Disaster Relief Notified
+            </div>
+            <div class="drought-grid">
+              <div class="drought-metric">
+                <div class="lbl">Avg Yield Deficit</div>
+                <div id="heroDeficitVal" class="val val-deficit">—</div>
+              </div>
+              <div class="drought-metric">
+                <div class="lbl">Production Loss</div>
+                <div id="heroLossVal" class="val val-loss">—</div>
+              </div>
+            </div>
+
+            <div class="damage-bar-wrap">
+              <div class="lbl-row">
+                <span>Field Damage Distribution</span>
+                <span id="damageDistributionSummary">0 fields</span>
+              </div>
+              <div class="damage-bar">
+                <div id="barSevere" class="seg-severe" style="width: 0%;" title="Severe Failure"></div>
+                <div id="barSubstantial" class="seg-substantial" style="width: 0%;" title="Substantial Loss"></div>
+                <div id="barModerate" class="seg-moderate" style="width: 0%;" title="Moderate Deficit"></div>
+                <div id="barNormal" class="seg-normal" style="width: 100%;" title="Normal"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Basic Statistics -->
           <div class="stats-grid">
             <div class="stat-card">
-              <div class="label">Village</div>
+              <div class="label">Village / Dataset</div>
               <div class="value" id="villageName">—</div>
             </div>
             <div class="stat-card">
-              <div class="label">Fields</div>
+              <div class="label">Total Fields</div>
               <div class="value" id="fieldCount">0</div>
             </div>
             <div class="stat-card">
-              <div class="label">Dominant cluster</div>
+              <div class="label">Dominant Crop</div>
               <div class="value" id="dominantCrop">—</div>
             </div>
             <div class="stat-card">
-              <div class="label">Sensor coverage</div>
+              <div class="label">S1 + S2 Coverage</div>
               <div class="value" id="coverageValue">0%</div>
             </div>
           </div>
 
+          <!-- Live Progress -->
           <div class="progress-box">
-            <div class="section-label">Live progress</div>
+            <div class="section-label">Pipeline Execution</div>
             <div class="progress-bar">
               <div id="progressFill" class="progress-fill"></div>
             </div>
             <ul id="progressList" class="step-list"></ul>
           </div>
 
+          <!-- Dynamic Legend -->
           <div class="legend-box">
-            <div class="section-label">Legend</div>
+            <div class="section-label" id="legendTitle">Map Legend · Crop Clusters</div>
             <ul id="legendList" class="legend-list"></ul>
           </div>
         </aside>
 
+        <!-- Interactive Map Panel -->
         <main class="panel map-panel">
+          <div class="map-header-bar">
+            <div style="display:flex; align-items:center; gap: 10px;">
+              <span class="control-label">Map Color Mode:</span>
+              <div class="map-mode-toggle">
+                <button id="modeCropBtn" class="map-mode-btn active" type="button">🌾 Crop Classes</button>
+                <button id="modeYieldBtn" class="map-mode-btn" type="button">🔥 Drought Yield Loss</button>
+              </div>
+            </div>
+            <div id="mapStatusText" style="font-size: 0.78rem; color: var(--muted);">
+              Ready. Click on any field polygon to inspect yield and radar signatures.
+            </div>
+          </div>
           <div id="map"></div>
         </main>
       </div>
 
+      <!-- Field Predictions & Yield Detail Table -->
       <section class="panel table-panel">
-        <div class="section-label">Field predictions</div>
+        <div class="table-header-row">
+          <div>
+            <div class="section-label">Field-Level Crop Intelligence & Harvest Predictions</div>
+            <div style="font-size: 0.8rem; color: var(--muted); margin-top: 4px;">
+              Predictions conform to DES/APY historical baselines and 2026 early CCE anchors.
+            </div>
+          </div>
+          <input type="text" id="tableSearch" class="search-box" placeholder="🔍 Search by Field ID or Crop..." />
+        </div>
+
         <div class="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>Field</th>
-                <th>Cluster</th>
-                <th>Evidence label</th>
-                <th>Crop evidence matches</th>
+                <th style="min-width: 85px;">Field ID</th>
+                <th style="width: 75px;">Area</th>
+                <th style="min-width: 180px;">🥇 Top #1 (Dominant) & Loss</th>
+                <th style="min-width: 170px;">🥈 Top #2 Scenario & Loss</th>
+                <th style="min-width: 170px;">🥉 Top #3 Scenario & Loss</th>
+                <th style="width: 130px;">Primary Status</th>
+                <th style="min-width: 180px;">Diagnostic Signals (S1 / S2)</th>
               </tr>
             </thead>
             <tbody id="resultsBody">
               <tr>
-                <td colspan="4" style="color: var(--muted);">No results yet. Upload a village GeoJSON file to begin.</td>
+                <td colspan="7" style="text-align:center; padding: 28px; color: var(--muted);">
+                  No predictions yet. Click <strong>"Load Sample Fields"</strong> or upload a GeoJSON file to inspect field yield.
+                </td>
               </tr>
             </tbody>
           </table>
         </div>
+
         <div class="table-controls">
           <span id="tableRange">No field results</span>
           <span>
@@ -590,20 +945,22 @@
       </section>
     </div>
 
+    <!-- Leaflet JS -->
     <script
       src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
       integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
       crossorigin=""
     ></script>
+
     <script>
-      const clusterPalette = ['#148f77', '#d35400', '#2471a3', '#af601a', '#7d3c98', '#117a65', '#b03a2e', '#4d5656'];
+      const clusterPalette = ['#40e099', '#46d1ff', '#f8c146', '#ae87ff', '#ff8ea1', '#148f77', '#d35400', '#2471a3'];
 
       const steps = [
-        { title: 'Validating GeoJSON', detail: 'Checking feature collection and geometry integrity.' },
-        { title: 'Normalizing fields', detail: 'Flattening field metadata and metadata keys.' },
-        { title: 'Temporal extraction', detail: 'Preparing vegetation and radar signals for each field.' },
-        { title: 'Cluster labeling', detail: 'Matching cluster signatures to crop evidence.' },
-        { title: 'Finalizing results', detail: 'Aggregating village summary and enrichment output.' }
+        { title: 'Validating GeoJSON', detail: 'Parsing polygon topology and field keys.' },
+        { title: 'Sentinel-1 & 2 Extraction', detail: 'Pulling S1 SAR (VH/VV) & S2 Optical (NDVI, NDMI).' },
+        { title: 'Phenology & Cluster Matching', detail: 'Matching temporal signatures against Maharashtra crop priors.' },
+        { title: 'AI Yield & Drought Regressor', detail: 'Calculating kg/ha yield, deficit %, and lost production.' },
+        { title: 'Finalizing Assessment', detail: 'Consolidating village damage metrics and map overlays.' }
       ];
 
       const state = {
@@ -614,106 +971,141 @@
         activeFileName: 'village',
         clusterColors: new Map(),
         tablePage: 0,
-        tablePageSize: 50
+        tablePageSize: 50,
+        mapColorMode: 'crop', // 'crop' or 'yield'
+        droughtTalukas: [],
+        talukasByDistrict: {}
       };
+
+      // Load 265 drought talukas on startup
+      async function fetchDroughtTalukas() {
+        try {
+          const res = await fetch('/drought-talukas');
+          if (res.ok) {
+            const data = await res.json();
+            state.droughtTalukas = data.talukas || [];
+            state.talukasByDistrict = {};
+            state.droughtTalukas.forEach(item => {
+              const d = (item.district || '').trim();
+              if (!state.talukasByDistrict[d]) state.talukasByDistrict[d] = [];
+              state.talukasByDistrict[d].push(item.taluka);
+            });
+            populateTalukas();
+          }
+        } catch (e) {
+          console.warn('Could not load drought talukas from server:', e);
+        }
+      }
+
+      function populateTalukas() {
+        const dist = document.getElementById('districtSelect')?.value || '';
+        const talukaSelect = document.getElementById('talukaSelect');
+        if (!talukaSelect) return;
+
+        talukaSelect.innerHTML = '';
+        const list = state.talukasByDistrict[dist] || [];
+
+        if (list.length > 0) {
+          list.forEach((tal, idx) => {
+            const opt = document.createElement('option');
+            opt.value = tal;
+            opt.textContent = `${tal} [Trigger-1 🚨]`;
+            if (idx === 0) opt.selected = true;
+            talukaSelect.appendChild(opt);
+          });
+          document.getElementById('trigger1Badge').style.display = 'inline-flex';
+          document.getElementById('talukaDroughtBadge').textContent = 'Trigger-1 Active';
+          document.getElementById('talukaDroughtBadge').className = 'drought-badge';
+          document.getElementById('droughtTalukaHeading').textContent = `${list[0]}, ${dist}`;
+        } else {
+          const opt = document.createElement('option');
+          opt.value = `${dist} Central`;
+          opt.textContent = `${dist} Central (Non-notified)`;
+          talukaSelect.appendChild(opt);
+          document.getElementById('talukaDroughtBadge').textContent = 'Non-notified';
+          document.getElementById('droughtTalukaHeading').textContent = `${dist}`;
+        }
+      }
 
       function getAnalysisPeriod() {
         const now = new Date();
         const currentYear = now.getFullYear();
-        const format = (date) => {
-          const year = date.getFullYear();
-          const month = String(date.getMonth() + 1).padStart(2, '0');
-          const day = String(date.getDate()).padStart(2, '0');
-          return `${year}-${month}-${day}`;
-        };
+        const format = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         const todayStr = format(now);
         const season = document.getElementById('seasonSelect')?.value || 'current_kharif';
 
         if (season === 'current_kharif') {
-          const start = `${currentYear}-06-01`;
-          return { startDate: start, endDate: todayStr, label: `Current Kharif: ${start} to ${todayStr} (Today)` };
-        }
-        if (season === 'current_rabi') {
-          const start = `${currentYear}-10-01`;
-          return { startDate: start, endDate: todayStr, label: `Current Rabi: ${start} to ${todayStr} (Today)` };
-        }
-        if (season === 'latest_rabi') {
-          const start = `${currentYear - 1}-10-01`;
-          const end = `${currentYear}-03-31`;
-          return { startDate: start, endDate: end, label: `Rabi ${currentYear - 1}-${String(currentYear).slice(-2)}: ${start} to ${end}` };
+          return { startDate: `${currentYear}-06-01`, endDate: todayStr, label: `Kharif ${currentYear} (Jun – Present)` };
         }
         if (season === 'prev_kharif') {
-          const start = `${currentYear - 1}-06-01`;
-          const end = `${currentYear - 1}-11-30`;
-          return { startDate: start, endDate: end, label: `Kharif ${currentYear - 1}: ${start} to ${end}` };
-        }
-        if (season === 'year_2026') {
-          const start = `${currentYear}-01-01`;
-          return { startDate: start, endDate: todayStr, label: `YTD ${currentYear}: ${start} to ${todayStr}` };
+          return { startDate: `${currentYear - 1}-06-01`, endDate: `${currentYear - 1}-11-30`, label: `Kharif ${currentYear - 1}` };
         }
         if (season === 'custom') {
-          const startVal = document.getElementById('customStartDate')?.value || `${currentYear}-06-01`;
-          const endVal = document.getElementById('customEndDate')?.value || todayStr;
-          return { startDate: startVal, endDate: endVal, label: `Custom: ${startVal} to ${endVal}` };
+          const s = document.getElementById('customStartDate')?.value || `${currentYear}-06-01`;
+          const e = document.getElementById('customEndDate')?.value || todayStr;
+          return { startDate: s, endDate: e, label: `Custom: ${s} to ${e}` };
         }
-        // Fallback: trailing 12 months
-        const start = new Date(now);
-        start.setFullYear(start.getFullYear() - 1);
-        const sStr = format(start);
-        return { startDate: sStr, endDate: todayStr, label: `Trailing 12m: ${sStr} to ${todayStr}` };
+        const s = new Date(now);
+        s.setFullYear(s.getFullYear() - 1);
+        return { startDate: format(s), endDate: todayStr, label: `Trailing 12m` };
       }
 
-      function updatePeriodDisplay() {
-        const seasonSelect = document.getElementById('seasonSelect');
-        const customGroup = document.getElementById('customDateRange');
-        if (seasonSelect && customGroup) {
-          customGroup.style.display = seasonSelect.value === 'custom' ? 'flex' : 'none';
-        }
-        const period = getAnalysisPeriod();
-        const periodEl = document.getElementById('analysisPeriod');
-        if (periodEl) {
-          periodEl.textContent = period.label;
-        }
+      function getYieldColor(deficitPct) {
+        if (deficitPct === null || deficitPct === undefined) return '#6b7280';
+        const d = Math.abs(Number(deficitPct));
+        if (d >= 60.0) return '#ff4d6d'; // Severe Failure
+        if (d >= 35.0) return '#ff9233'; // Substantial Loss
+        if (d >= 20.0) return '#facc15'; // Moderate Deficit
+        return '#22c55e'; // Normal
       }
 
       function getClusterColor(clusterId) {
         if (clusterId === null || clusterId === undefined) return '#7c8582';
-        return state.clusterColors.get(Number(clusterId)) || '#7c8582';
+        return state.clusterColors.get(Number(clusterId)) || '#46d1ff';
       }
 
       function getFieldId(feature, index) {
         if (!feature) return `field_${index + 1}`;
-        const props = feature.properties || {};
-        return String(
-          props.field_id ??
-          feature.id ??
-          props.fid ??
-          props.FID ??
-          props.id ??
-          props.ID ??
-          `field_${index + 1}`
-        );
+        const p = feature.properties || {};
+        return String(p.field_id ?? feature.id ?? p.fid ?? p.FID ?? p.id ?? `field_${index + 1}`);
       }
 
       function renderLegend(result = null) {
         const legendList = document.getElementById('legendList');
-        const clusters = result?.cluster_summary || [];
-        state.clusterColors = new Map(clusters.map((cluster, index) => [Number(cluster.cluster_id ?? cluster.cluster), clusterPalette[index % clusterPalette.length]]));
-        if (!clusters.length) {
-          legendList.innerHTML = '<li class="legend-item" style="color: var(--muted); font-style: italic;">Load a GeoJSON file and run classification to see cluster assignments.</li>';
+        const legendTitle = document.getElementById('legendTitle');
+
+        if (state.mapColorMode === 'yield') {
+          legendTitle.textContent = 'Map Legend · Yield Deficit & Damage';
+          legendList.innerHTML = `
+            <li class="legend-item"><span style="display:flex;align-items:center;gap:8px;"><span class="swatch" style="background:#ff4d6d;"></span><span>Severe Crop Failure (≥60% Loss)</span></span></li>
+            <li class="legend-item"><span style="display:flex;align-items:center;gap:8px;"><span class="swatch" style="background:#ff9233;"></span><span>Substantial Loss (35% – 60%)</span></span></li>
+            <li class="legend-item"><span style="display:flex;align-items:center;gap:8px;"><span class="swatch" style="background:#facc15;"></span><span>Moderate Deficit (20% – 35%)</span></span></li>
+            <li class="legend-item"><span style="display:flex;align-items:center;gap:8px;"><span class="swatch" style="background:#22c55e;"></span><span>Normal / Minor Variation (&lt;20%)</span></span></li>
+          `;
           return;
         }
-        legendList.innerHTML = clusters.map((cluster) => {
-          const cid = Number(cluster.cluster_id ?? cluster.cluster);
+
+        // Crop Cluster Mode
+        legendTitle.textContent = 'Map Legend · Crop Clusters';
+        const clusters = result?.cluster_summary || [];
+        state.clusterColors = new Map(clusters.map((c, i) => [Number(c.cluster_id ?? c.cluster), clusterPalette[i % clusterPalette.length]]));
+
+        if (!clusters.length) {
+          legendList.innerHTML = '<li class="legend-item" style="color: var(--muted); font-style: italic;">Load fields and run analysis to view assigned crop clusters.</li>';
+          return;
+        }
+
+        legendList.innerHTML = clusters.map(c => {
+          const cid = Number(c.cluster_id ?? c.cluster);
           const color = getClusterColor(cid);
-          const rawLabel = cluster.label || cluster.candidate_label || `Cluster ${cid}`;
+          const lbl = c.label || `Cluster ${cid}`;
           return `
-            <li class="legend-item" style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+            <li class="legend-item">
               <span style="display:flex; align-items:center; gap:8px;">
                 <span class="swatch" style="background:${color};"></span>
-                <span>${rawLabel}</span>
+                <span>${lbl}</span>
               </span>
-              <span>${cluster.cluster_count} fields</span>
+              <span>${c.cluster_count} fields</span>
             </li>
           `;
         }).join('');
@@ -722,16 +1114,16 @@
       function renderProgress(index = 0, detail = '') {
         const progressFill = document.getElementById('progressFill');
         const list = document.getElementById('progressList');
-        const progressIndex = Math.max(0, Math.min(steps.length, Number(index)));
-        progressFill.style.width = `${(progressIndex / steps.length) * 100}%`;
+        const pIndex = Math.max(0, Math.min(steps.length, Number(index)));
+        progressFill.style.width = `${(pIndex / steps.length) * 100}%`;
 
-        const activeStep = Math.min(Math.floor(progressIndex), steps.length - 1);
-        list.innerHTML = steps.map((step, stepIndex) => `
-          <li class="step ${progressIndex >= steps.length || stepIndex < activeStep ? 'done' : stepIndex === activeStep ? 'active' : 'pending'}">
+        const activeStep = Math.min(Math.floor(pIndex), steps.length - 1);
+        list.innerHTML = steps.map((s, idx) => `
+          <li class="step ${pIndex >= steps.length || idx < activeStep ? 'done' : idx === activeStep ? 'active' : 'pending'}">
             <span class="dot"></span>
             <div>
-              <h4>${step.title}</h4>
-              <p>${stepIndex === Math.min(Math.floor(progressIndex), steps.length - 1) && detail ? detail : step.detail}</p>
+              <h4>${s.title}</h4>
+              <p>${idx === Math.min(Math.floor(pIndex), steps.length - 1) && detail ? detail : s.detail}</p>
             </div>
           </li>
         `).join('');
@@ -741,11 +1133,36 @@
         const total = Math.max(1, Number(event.total || 1));
         const completed = Math.max(0, Number(event.completed || 0));
         let index = 1;
-        if (event.stage === 'satellite_extraction') index = 2 + (0.8 * completed) / total;
-        if (event.stage === 'temporal_clustering') index = completed ? 3.2 : 3;
-        if (event.stage === 'evidence_labeling') index = 3.4 + (0.5 * completed) / total;
+        if (event.stage === 'satellite_extraction') index = 1 + (1.2 * completed) / total;
+        if (event.stage === 'temporal_clustering') index = 2.4;
+        if (event.stage === 'evidence_labeling') index = 2.8 + (0.8 * completed) / total;
         if (event.stage === 'complete') index = steps.length;
-        renderProgress(index, event.message || 'Processing uploaded fields.');
+        renderProgress(index, event.message || 'Processing Sentinel time series.');
+      }
+
+      function renderExecutiveDrought(result) {
+        const da = result?.drought_assessment;
+        if (!da) return;
+
+        const avgDeficit = da.average_yield_deficit_pct;
+        const deficitEl = document.getElementById('heroDeficitVal');
+        deficitEl.textContent = avgDeficit !== undefined ? `${avgDeficit > 0 ? '+' : ''}${avgDeficit}%` : '—';
+        deficitEl.className = `val ${avgDeficit <= -35 ? 'val-deficit' : 'val-loss'}`;
+
+        const lossTonnes = da.total_production_loss_tonnes;
+        document.getElementById('heroLossVal').textContent = lossTonnes !== null ? `${lossTonnes} t` : '—';
+
+        // Damage distribution bar
+        const b = da.damage_breakdown || {};
+        const total = (b.severe || 0) + (b.substantial || 0) + (b.moderate || 0) + (b.normal || 0);
+        document.getElementById('damageDistributionSummary').textContent = `${total} fields analyzed`;
+
+        if (total > 0) {
+          document.getElementById('barSevere').style.width = `${((b.severe || 0) / total) * 100}%`;
+          document.getElementById('barSubstantial').style.width = `${((b.substantial || 0) / total) * 100}%`;
+          document.getElementById('barModerate').style.width = `${((b.moderate || 0) / total) * 100}%`;
+          document.getElementById('barNormal').style.width = `${((b.normal || 0) / total) * 100}%`;
+        }
       }
 
       function renderSummary(result) {
@@ -753,72 +1170,126 @@
         const fieldCount = Number(result.field_count ?? 0);
         document.getElementById('fieldCount').textContent = String(fieldCount);
         document.getElementById('dominantCrop').textContent = result.dominant_crop || '—';
-        const coveredFields = Number(result.complete_sensor_field_count ?? 0);
-        document.getElementById('coverageValue').textContent = `${((coveredFields / Math.max(fieldCount, 1)) * 100).toFixed(0)}%`;
+        const covered = Number(result.complete_sensor_field_count ?? 0);
+        document.getElementById('coverageValue').textContent = `${((covered / Math.max(fieldCount, 1)) * 100).toFixed(0)}%`;
+
+        renderExecutiveDrought(result);
+      }
+
+      function formatCandidateCell(cand, isDominant = false) {
+        if (!cand) return '<span style="color:var(--muted); font-style:italic;">—</span>';
+        const cyp = cand.yield_prediction || {};
+        const defPct = cyp.yield_deficit_pct;
+        const defColor = (defPct || 0) <= -35 ? '#ff5478' : ((defPct || 0) <= -20 ? '#f8c146' : '#40e099');
+        const cropTitle = (cand.crop || 'Unknown').replace(/_/g, ' ');
+        const scorePct = ((cand.score || 0) * 100).toFixed(0);
+        const predYield = cyp.predicted_yield_kg_ha ? `<b>${cyp.predicted_yield_kg_ha} kg/ha</b>` : '—';
+        const defStr = defPct !== undefined ? `${defPct > 0 ? '+' : ''}${defPct}%` : '—';
+
+        return `
+          <div style="font-size:0.81rem; line-height:1.42;">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:6px;">
+              <strong style="color:${isDominant ? 'var(--cyan)' : 'var(--text)'};">${cropTitle}</strong>
+              <span style="color:var(--muted); font-size:0.71rem; font-weight:600;">${scorePct}%</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:2px; font-size:0.76rem;">
+              <span style="color:${isDominant ? '#fff' : 'var(--muted)'};">${predYield}</span>
+              <span style="color:${defColor}; font-weight:800;">${defStr}</span>
+            </div>
+          </div>
+        `;
       }
 
       function renderResultsTable(result) {
         const tbody = document.getElementById('resultsBody');
-        const predictions = result?.field_predictions || [];
+        const query = (document.getElementById('tableSearch')?.value || '').toLowerCase().trim();
+        let predictions = result?.field_predictions || [];
+
+        if (query) {
+          predictions = predictions.filter(p =>
+            String(p.field_id || '').toLowerCase().includes(query) ||
+            String(p.best_crop || '').toLowerCase().includes(query) ||
+            String(p.yield_prediction?.damage_category || '').toLowerCase().includes(query) ||
+            (p.top_3_candidates || []).some(c => String(c.crop || '').toLowerCase().includes(query))
+          );
+        }
+
         const pageCount = Math.max(1, Math.ceil(predictions.length / state.tablePageSize));
         state.tablePage = Math.min(state.tablePage, pageCount - 1);
+
         if (!predictions.length) {
-          tbody.innerHTML = '<tr><td colspan="4" style="color: var(--muted);">No field results returned.</td></tr>';
-          document.getElementById('tableRange').textContent = 'No field results';
+          tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:20px; color:var(--muted);">No matching field results found.</td></tr>';
+          document.getElementById('tableRange').textContent = '0 results';
           document.getElementById('previousPage').disabled = true;
           document.getElementById('nextPage').disabled = true;
           return;
         }
 
         const start = state.tablePage * state.tablePageSize;
-        const visiblePredictions = predictions.slice(start, start + state.tablePageSize);
-        tbody.innerHTML = visiblePredictions.map((record) => {
-          const cid = record.cluster_id;
-          const color = getClusterColor(cid);
-          const badge = cid !== null && cid !== undefined
-            ? `<span style="display:inline-block; padding: 2px 8px; border-radius: 999px; background: ${color}; color: #ffffff; font-weight: 600; font-size: 11px;">C${cid}</span>`
-            : '—';
-          const candidates = (record.top_3_candidates || []).map((item) => `${item.crop.replace(/_/g, ' ')} (${Number(item.score).toFixed(2)})`).join(' · ') || 'No matching reference evidence';
+        const visible = predictions.slice(start, start + state.tablePageSize);
+
+        tbody.innerHTML = visible.map(record => {
+          const yp = record.yield_prediction || {};
+          const ind = yp.drought_indicators || {};
+          const damageCat = yp.damage_category || 'Normal';
+
+          let badgeClass = 'badge-normal';
+          if (damageCat.includes('Severe')) badgeClass = 'badge-severe';
+          else if (damageCat.includes('Substantial')) badgeClass = 'badge-substantial';
+          else if (damageCat.includes('Moderate')) badgeClass = 'badge-moderate';
+
+          const area = yp.area_ha ? `${yp.area_ha} ha` : '—';
+          const top3 = record.top_3_candidates || [];
+          const cand1 = top3[0] || (record.best_crop ? { crop: record.best_crop, score: record.best_score, yield_prediction: yp } : null);
+          const cand2 = top3[1] || null;
+          const cand3 = top3[2] || null;
+
+          const cell1 = formatCandidateCell(cand1, true);
+          const cell2 = formatCandidateCell(cand2, false);
+          const cell3 = formatCandidateCell(cand3, false);
+
+          const sigs = ind.satellite_available
+            ? `NDVI: <b>${ind.peak_ndvi ?? '—'}</b> · NDMI: <b style="color:${ind.ndmi_min < 0 ? '#ff5478' : '#46d1ff'}">${ind.ndmi_min ?? '—'}</b> · S1: <b>${ind.s1_vh_peak ?? '—'} dB</b>`
+            : '<span style="color:var(--muted); font-style:italic;">District Prior Model</span>';
+
           return `
             <tr>
-              <td>${record.field_id || 'field'}</td>
-              <td>${badge}</td>
-              <td><span class="tag" style="border-left: 3px solid ${color};">${record.cluster_label || record.temporal_cluster_label || 'Satellite data unavailable'}</span></td>
-              <td>${candidates}</td>
+              <td><strong>${record.field_id || 'field'}</strong></td>
+              <td>${area}</td>
+              <td>${cell1}</td>
+              <td>${cell2}</td>
+              <td>${cell3}</td>
+              <td><span class="badge ${badgeClass}">${damageCat}</span></td>
+              <td style="font-size:0.77rem;">${sigs}</td>
             </tr>
           `;
         }).join('');
-        document.getElementById('tableRange').textContent = `Fields ${start + 1}–${Math.min(start + visiblePredictions.length, predictions.length)} of ${predictions.length} · Page ${state.tablePage + 1} of ${pageCount}`;
+
+        document.getElementById('tableRange').textContent = `Fields ${start + 1}–${Math.min(start + visible.length, predictions.length)} of ${predictions.length} · Page ${state.tablePage + 1} of ${pageCount}`;
         document.getElementById('previousPage').disabled = state.tablePage === 0;
         document.getElementById('nextPage').disabled = state.tablePage >= pageCount - 1;
       }
 
       function initializeMap() {
         if (state.map) return;
-        state.map = L.map('map', { zoomControl: true, preferCanvas: true }).setView([20.0, 77.0], 7);
+        state.map = L.map('map', { zoomControl: true, preferCanvas: true }).setView([19.75, 75.71], 7);
+
         const esriSatellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-          attribution: 'Tiles &copy; Esri, Maxar, Earthstar Geographics',
+          attribution: 'Tiles &copy; Esri, Maxar',
           maxZoom: 19
         });
         const cartoVoyager = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-          attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-          subdomains: 'abcd',
+          attribution: '&copy; CartoDB',
           maxZoom: 20
         });
-        const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '&copy; OpenStreetMap contributors',
-          maxZoom: 19
-        });
+
         esriSatellite.addTo(state.map);
         L.control.layers({
           'Satellite Imagery': esriSatellite,
-          'Street / Voyager': cartoVoyager,
-          'OpenStreetMap': osm
+          'Road / Basemap': cartoVoyager
         }, null, { position: 'topright' }).addTo(state.map);
 
-        setTimeout(() => {
-          if (state.map) state.map.invalidateSize();
-        }, 150);
+        setTimeout(() => state.map && state.map.invalidateSize(), 150);
       }
 
       function drawFeatureCollection(data, result = null) {
@@ -831,19 +1302,11 @@
         if (!data) return;
 
         const rawFeatures = data.type === 'FeatureCollection' ? data.features : (Array.isArray(data) ? data : [data]);
-        const features = (rawFeatures || []).filter((f) => f && f.geometry);
+        const features = (rawFeatures || []).filter(f => f && f.geometry);
+        if (!features.length) return;
 
-        if (!features.length) {
-          console.warn('drawFeatureCollection: No features with geometry found.');
-          return;
-        }
-
-        const collection = {
-          type: 'FeatureCollection',
-          features
-        };
-
-        const assignments = new Map((result?.field_predictions || []).map((prediction) => [String(prediction.field_id), prediction]));
+        const collection = { type: 'FeatureCollection', features };
+        const assignments = new Map((result?.field_predictions || []).map(p => [String(p.field_id), p]));
         const isClassified = Boolean(result && (result.field_predictions || []).length > 0);
 
         const layer = L.geoJSON(collection, {
@@ -853,266 +1316,301 @@
             const prediction = assignments.get(fieldId);
 
             if (isClassified && prediction) {
-              const color = getClusterColor(prediction.cluster_id);
+              let color;
+              if (state.mapColorMode === 'yield') {
+                color = getYieldColor(prediction.yield_prediction?.yield_deficit_pct);
+              } else {
+                color = getClusterColor(prediction.cluster_id);
+              }
               return {
                 color: color,
-                weight: 1.5,
+                weight: 2,
                 opacity: 0.95,
                 fillColor: color,
-                fillOpacity: 0.55
-              };
-            } else if (isClassified) {
-              return {
-                color: '#7c8582',
-                weight: 1.5,
-                opacity: 0.8,
-                fillColor: '#7c8582',
-                fillOpacity: 0.35,
-                dashArray: '3 5'
-              };
-            } else {
-              return {
-                color: '#54d6ff',
-                weight: 1.5,
-                opacity: 0.9,
-                fillColor: '#54d6ff',
-                fillOpacity: 0.35
+                fillOpacity: 0.58
               };
             }
+            return {
+              color: '#46d1ff',
+              weight: 1.5,
+              opacity: 0.85,
+              fillColor: '#46d1ff',
+              fillOpacity: 0.3
+            };
           },
           onEachFeature: (feature, layerItem) => {
             const index = features.indexOf(feature);
             const fieldId = getFieldId(feature, index);
-            const props = feature.properties || {};
             const prediction = assignments.get(fieldId);
 
             if (isClassified && prediction) {
-              const clusterColor = getClusterColor(prediction.cluster_id);
-              const candidates = (prediction.top_3_candidates || []).map((item) =>
-                `<b>${item.crop.replace(/_/g, ' ')}</b>: ${(Number(item.score) * 100).toFixed(1)}%`
-              ).join('<br>') || 'No crop evidence';
+              const yp = prediction.yield_prediction || {};
+              const ind = yp.drought_indicators || {};
+              const defColor = (yp.yield_deficit_pct || 0) <= -35 ? '#ff5478' : '#f8c146';
+
+              const top3Candidates = prediction.top_3_candidates || [];
+              const top3Html = top3Candidates.length ? top3Candidates.map((cand, idx) => {
+                const cyp = cand.yield_prediction || {};
+                const cDef = cyp.yield_deficit_pct;
+                const cDefColor = (cDef || 0) <= -35 ? '#ff5478' : ((cDef || 0) <= -20 ? '#ff9233' : '#16a34a');
+                const medal = idx === 0 ? '🥇 #1' : (idx === 1 ? '🥈 #2' : '🥉 #3');
+                const cropTitle = (cand.crop || 'Unknown').replace(/_/g, ' ');
+                const scorePct = ((cand.score || 0) * 100).toFixed(0);
+                const predYield = cyp.predicted_yield_kg_ha ? `${cyp.predicted_yield_kg_ha} kg/ha` : '—';
+                const refYield = cyp.reference_yield_kg_ha ? `${cyp.reference_yield_kg_ha} kg/ha` : '—';
+                const defStr = cDef !== undefined ? `${cDef > 0 ? '+' : ''}${cDef}%` : '—';
+                const dmg = cyp.damage_category || 'Assessed';
+
+                return `
+                  <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:7px; padding:6px 9px; margin-bottom:5px; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                      <span style="font-weight:700; font-size:12.5px; color:#0f172a;">${medal} ${cropTitle}</span>
+                      <span style="font-size:10.5px; padding:1px 6px; border-radius:99px; background:${idx === 0 ? '#e0f2fe' : '#f1f5f9'}; color:${idx === 0 ? '#0284c7' : '#475569'}; font-weight:700;">
+                        ${scorePct}% match
+                      </span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; font-size:11.5px; margin-top:2px;">
+                      <span>Yield: <b style="color:#0f172a;">${predYield}</b> <span style="color:#64748b; font-size:10.5px;">(5-yr: ${refYield})</span></span>
+                      <span style="color:${cDefColor}; font-weight:800; font-size:12px;">${defStr}</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; font-size:10px; color:#64748b; margin-top:3px; border-top:1px dashed #f1f5f9; padding-top:2px;">
+                      <span>Damage: <b style="color:${cDefColor};">${dmg}</b></span>
+                      ${cyp.production_loss_tonnes !== null ? `<span>Loss: <b>${cyp.production_loss_tonnes} t</b></span>` : ''}
+                    </div>
+                  </div>
+                `;
+              }).join('') : `
+                <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:7px; padding:7px 9px;">
+                  <div><b>Crop:</b> ${prediction.best_crop || 'Unknown'}</div>
+                  <div><b>Predicted Yield:</b> ${yp.predicted_yield_kg_ha ?? '—'} kg/ha</div>
+                  <div><b>Deficit:</b> ${yp.yield_deficit_pct ?? '—'}%</div>
+                </div>
+              `;
 
               layerItem.bindPopup(`
-                <div style="font-family: inherit; font-size: 13px; line-height: 1.45; color: #111; min-width: 190px;">
-                  <strong style="font-size: 14px; color: #081a21;">Field: ${fieldId}</strong><br>
-                  <span style="display:inline-block; margin: 5px 0 7px; padding: 2px 8px; border-radius: 999px; background: ${clusterColor}; color: #ffffff; font-weight: 600; font-size: 11px;">
-                    Cluster ${prediction.cluster_id ?? '—'}
-                  </span>
-                  <div style="margin-bottom: 4px;"><b>Cluster Label:</b> ${prediction.cluster_label || prediction.temporal_cluster_label || 'Unassigned'}</div>
-                  <div style="margin-bottom: 4px;"><b>Dominant Crop:</b> ${prediction.best_crop ? prediction.best_crop.replace(/_/g, ' ') : 'Unknown'} (${((prediction.best_score || 0) * 100).toFixed(1)}%)</div>
-                  <hr style="margin: 6px 0; border: none; border-top: 1px solid #ddd;">
-                  <strong>Top Candidates:</strong><br>${candidates}
+                <div style="font-family:'Inter',sans-serif; font-size:13px; line-height:1.45; color:#111; min-width:280px; max-width:320px; padding:3px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:7px; border-bottom:1px solid #e2e8f0; padding-bottom:5px;">
+                    <strong style="font-size:15px; color:#061a23;">Field ${fieldId}</strong>
+                    <span style="font-size:11px; padding:2px 8px; border-radius:99px; background:${defColor}; color:#fff; font-weight:700;">
+                      ${yp.damage_category || 'Assessed'}
+                    </span>
+                  </div>
+
+                  <div style="font-size:11px; font-weight:700; text-transform:uppercase; color:#64748b; margin-bottom:5px; letter-spacing:0.04em;">
+                    Top 3 Crop Scenarios & Yield Losses:
+                  </div>
+
+                  ${top3Html}
+
+                  <div style="font-size:10.5px; color:#475569; background:#f8fafc; border-radius:6px; padding:5px 7px; margin-top:6px; border:1px solid #e2e8f0;">
+                    <b>Satellite Stress Signatures:</b><br>
+                    • Peak NDVI: <b>${ind.peak_ndvi ?? '—'}</b> · min NDMI: <b style="color:${ind.ndmi_min < 0 ? '#dc2626' : '#0284c7'}">${ind.ndmi_min ?? '—'}</b><br>
+                    • S1 Radar VH: <b>${ind.s1_vh_peak ?? '—'} dB</b>
+                  </div>
                 </div>
               `);
             } else {
-              const propSummary = Object.entries(props)
-                .filter(([k]) => k !== 'geometry')
-                .slice(0, 4)
-                .map(([k, v]) => `<b>${k}:</b> ${v}`)
-                .join('<br>');
-
               layerItem.bindPopup(`
-                <div style="font-family: inherit; font-size: 13px; line-height: 1.45; color: #111; min-width: 160px;">
-                  <strong style="font-size: 14px; color: #081a21;">Field: ${fieldId}</strong><br>
-                  <span style="color: #0b7285; font-weight: 600;">Status: Ready for classification</span>
-                  ${propSummary ? `<hr style="margin: 6px 0; border: none; border-top: 1px solid #ddd;">${propSummary}` : ''}
+                <div style="font-family:'Inter',sans-serif; font-size:13px; color:#111;">
+                  <strong>Field ${fieldId}</strong><br>
+                  <span style="color:#0284c7; font-weight:600;">Ready for AI classification & yield estimation</span>
                 </div>
               `);
             }
 
             layerItem.on({
               mouseover: (e) => {
-                const target = e.target;
-                target.setStyle({ weight: 3, color: '#ffffff', opacity: 1, fillOpacity: 0.85 });
-                if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
-                  target.bringToFront();
-                }
+                e.target.setStyle({ weight: 3.5, color: '#ffffff', fillOpacity: 0.85 });
+                if (!L.Browser.ie && !L.Browser.opera) e.target.bringToFront();
               },
-              mouseout: (e) => {
-                layer.resetStyle(e.target);
-              }
+              mouseout: (e) => layer.resetStyle(e.target)
             });
           }
         }).addTo(state.map);
 
         state.geojsonLayer = layer;
-
         setTimeout(() => {
           if (state.map) {
             state.map.invalidateSize();
             try {
               const bounds = layer.getBounds();
-              if (bounds && bounds.isValid && bounds.isValid()) {
-                state.map.fitBounds(bounds, { padding: [24, 24], maxZoom: 17 });
-              }
-            } catch (err) {
-              console.warn('Error fitting map bounds:', err);
-            }
+              if (bounds && bounds.isValid()) state.map.fitBounds(bounds, { padding: [28, 28], maxZoom: 17 });
+            } catch (err) {}
           }
-        }, 60);
+        }, 80);
       }
 
-      async function loadAndDisplayGeoJson(file) {
-        if (!file) return;
-        state.activeFileName = file.name.replace(/\.[^/.]+$/, '');
-        const text = await file.text();
-        let payload;
-        try {
-          payload = JSON.parse(text);
-        } catch (error) {
-          alert('The uploaded file is not valid JSON. Please check the GeoJSON content.');
-          return;
-        }
-
+      async function loadAndDisplayGeoJson(payload, name = 'custom_fields') {
+        state.activeFileName = name;
         if (payload.type !== 'FeatureCollection') {
           payload = { type: 'FeatureCollection', features: Array.isArray(payload) ? payload : [payload] };
         }
-
         state.loadedGeojson = payload;
         state.result = null;
 
-        document.getElementById('villageName').textContent = state.activeFileName;
-        const fieldCount = payload.features?.length || 0;
-        document.getElementById('fieldCount').textContent = String(fieldCount);
-        document.getElementById('dominantCrop').textContent = 'Ready to classify';
+        document.getElementById('villageName').textContent = name;
+        const count = payload.features?.length || 0;
+        document.getElementById('fieldCount').textContent = String(count);
+        document.getElementById('dominantCrop').textContent = 'Ready to Run';
         document.getElementById('coverageValue').textContent = '—';
 
         drawFeatureCollection(payload, null);
-        renderProgress(0, `Loaded ${fieldCount} fields from ${file.name}. Click "Run classification" to begin.`);
+        renderProgress(0, `Loaded ${count} fields. Ready to run analysis.`);
       }
 
-      async function handleFileUpload(file) {
-        if (!file && !state.loadedGeojson) return;
-        let payload = state.loadedGeojson;
-        if (!payload && file) {
-          state.activeFileName = file.name.replace(/\.[^/.]+$/, '');
-          const text = await file.text();
-          try {
-            payload = JSON.parse(text);
-          } catch (error) {
-            alert('The uploaded file is not valid JSON. Please check the GeoJSON content.');
-            return;
-          }
-          if (payload.type !== 'FeatureCollection') {
-            payload = { type: 'FeatureCollection', features: Array.isArray(payload) ? payload : [payload] };
-          }
-          state.loadedGeojson = payload;
+      async function executeClassification() {
+        const payload = state.loadedGeojson;
+        if (!payload) {
+          alert('Please upload a GeoJSON file or click "Load Sample Fields" first.');
+          return;
         }
-
-        drawFeatureCollection(payload, null);
 
         const { startDate, endDate } = getAnalysisPeriod();
-        const districtName = document.getElementById('districtSelect')?.value || '';
-        renderProgress(1, 'Connecting to server and preparing analysis...');
+        const dist = document.getElementById('districtSelect')?.value || '';
+        const tal = document.getElementById('talukaSelect')?.value || '';
 
-        const response = await fetch('/classify-village/stream', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            village_id: state.activeFileName,
-            district_name: districtName,
-            fields: payload,
-            start_date: startDate,
-            end_date: endDate
-          })
-        });
+        renderProgress(1, 'Connecting to server and launching Sentinel-1/2 extraction...');
+        document.getElementById('runBtn').disabled = true;
 
-        if (!response.ok) {
-          const error = await response.json().catch(() => ({}));
-          throw new Error(error.detail || `API request failed (${response.status})`);
-        }
+        try {
+          const response = await fetch('/classify-village/stream', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              village_id: state.activeFileName,
+              district_name: dist,
+              taluka_name: tal,
+              fields: payload,
+              start_date: startDate,
+              end_date: endDate
+            })
+          });
 
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = '';
-        let result = null;
-        while (true) {
-          const { value, done } = await reader.read();
-          buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
-          let boundary = buffer.indexOf('\n\n');
-          while (boundary >= 0) {
-            const frame = buffer.slice(0, boundary);
-            buffer = buffer.slice(boundary + 2);
-            const dataLine = frame.split('\n').find((line) => line.startsWith('data:'));
-            if (dataLine) {
-              const event = JSON.parse(dataLine.slice(5).trim());
-              if (event.type === 'progress') renderBackendProgress(event);
-              if (event.type === 'result') result = event.result;
-              if (event.type === 'error') throw new Error(event.detail || 'Classification failed.');
-            }
-            boundary = buffer.indexOf('\n\n');
+          if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            throw new Error(err.detail || `Server error (${response.status})`);
           }
-          if (done) break;
+
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = '';
+          let result = null;
+
+          while (true) {
+            const { value, done } = await reader.read();
+            buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+            let boundary = buffer.indexOf('\n\n');
+            while (boundary >= 0) {
+              const frame = buffer.slice(0, boundary);
+              buffer = buffer.slice(boundary + 2);
+              const dataLine = frame.split('\n').find(l => l.startsWith('data:'));
+              if (dataLine) {
+                const event = JSON.parse(dataLine.slice(5).trim());
+                if (event.type === 'progress') renderBackendProgress(event);
+                if (event.type === 'result') result = event.result;
+                if (event.type === 'error') throw new Error(event.detail || 'Analysis error');
+              }
+              boundary = buffer.indexOf('\n\n');
+            }
+            if (done) break;
+          }
+
+          if (!result) throw new Error('Stream terminated without result.');
+          state.result = result;
+
+          renderLegend(result);
+          drawFeatureCollection(payload, result);
+          renderSummary(result);
+          renderResultsTable(result);
+          renderProgress(steps.length, 'Classification and Yield Estimation completed successfully.');
+          document.getElementById('downloadBtn').disabled = false;
+        } catch (e) {
+          renderProgress(0, 'Failed.');
+          alert(`Error: ${e.message}`);
+        } finally {
+          document.getElementById('runBtn').disabled = false;
         }
-
-        if (!result) throw new Error('The classification stream ended without a result.');
-        state.result = result;
-
-        renderLegend(result);
-        drawFeatureCollection(payload, result);
-        renderSummary(result);
-        renderResultsTable(result);
-        renderProgress(steps.length, 'Clusters, evidence labels, and map assignments are ready.');
-
-        if (result.satellite_status !== 'complete') {
-          alert(`Satellite time series status: ${result.satellite_status}. Check the API response and Earth Engine credentials before interpreting crop labels.`);
-        }
-
-        document.getElementById('downloadBtn').disabled = false;
       }
 
-      document.getElementById('geojsonFile').addEventListener('change', async (event) => {
-        const file = event.target.files && event.target.files[0];
-        if (!file) return;
+      // Event Listeners
+      document.getElementById('districtSelect').addEventListener('change', populateTalukas);
+
+      document.getElementById('sampleBtn').addEventListener('click', async () => {
         try {
-          await loadAndDisplayGeoJson(file);
+          const res = await fetch('/sample-geojson');
+          if (!res.ok) throw new Error('Sample GeoJSON endpoint failed');
+          const data = await res.json();
+          await loadAndDisplayGeoJson(data, 'sample_vidarbha_farms');
         } catch (err) {
-          alert(err.message || 'Failed to read GeoJSON file.');
+          alert('Could not load sample fields: ' + err.message);
         }
       });
 
-      document.getElementById('runBtn').addEventListener('click', async () => {
-        const fileInput = document.getElementById('geojsonFile');
-        const file = fileInput.files && fileInput.files[0];
-        if (!file && !state.loadedGeojson) {
-          alert('Please choose a GeoJSON file first.');
-          return;
-        }
+      document.getElementById('geojsonFile').addEventListener('change', async (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
         try {
-          await handleFileUpload(file);
-        } catch (error) {
-          renderProgress(0);
-          alert(error.message || 'Classification request failed.');
+          const text = await file.text();
+          const data = JSON.parse(text);
+          await loadAndDisplayGeoJson(data, file.name.replace(/\.[^/.]+$/, ''));
+        } catch (err) {
+          alert('Invalid GeoJSON: ' + err.message);
         }
+      });
+
+      document.getElementById('runBtn').addEventListener('click', executeClassification);
+
+      document.getElementById('modeCropBtn').addEventListener('click', () => {
+        state.mapColorMode = 'crop';
+        document.getElementById('modeCropBtn').classList.add('active');
+        document.getElementById('modeYieldBtn').classList.remove('active');
+        renderLegend(state.result);
+        if (state.loadedGeojson) drawFeatureCollection(state.loadedGeojson, state.result);
+      });
+
+      document.getElementById('modeYieldBtn').addEventListener('click', () => {
+        state.mapColorMode = 'yield';
+        document.getElementById('modeYieldBtn').classList.add('active');
+        document.getElementById('modeCropBtn').classList.remove('active');
+        renderLegend(state.result);
+        if (state.loadedGeojson) drawFeatureCollection(state.loadedGeojson, state.result);
+      });
+
+      document.getElementById('tableSearch')?.addEventListener('input', () => {
+        state.tablePage = 0;
+        renderResultsTable(state.result);
       });
 
       document.getElementById('downloadBtn').addEventListener('click', () => {
         if (!state.result) return;
         const blob = new Blob([JSON.stringify(state.result, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `${state.activeFileName || 'crop_predictions'}.json`;
-        link.click();
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${state.activeFileName || 'village'}_crop_yield_assessment.json`;
+        a.click();
         URL.revokeObjectURL(url);
       });
 
       document.getElementById('previousPage').addEventListener('click', () => {
-        if (state.tablePage > 0) state.tablePage -= 1;
-        renderResultsTable(state.result);
+        if (state.tablePage > 0) {
+          state.tablePage--;
+          renderResultsTable(state.result);
+        }
       });
 
       document.getElementById('nextPage').addEventListener('click', () => {
-        const pageCount = Math.ceil((state.result?.field_predictions?.length || 0) / state.tablePageSize);
-        if (state.tablePage + 1 < pageCount) state.tablePage += 1;
+        state.tablePage++;
         renderResultsTable(state.result);
       });
 
-      document.getElementById('seasonSelect')?.addEventListener('change', updatePeriodDisplay);
-      document.getElementById('customStartDate')?.addEventListener('change', updatePeriodDisplay);
-      document.getElementById('customEndDate')?.addEventListener('change', updatePeriodDisplay);
+      document.getElementById('seasonSelect')?.addEventListener('change', () => {
+        const isCustom = document.getElementById('seasonSelect').value === 'custom';
+        document.getElementById('customDateRange').style.display = isCustom ? 'flex' : 'none';
+      });
 
-      updatePeriodDisplay();
+      // Initialization
+      fetchDroughtTalukas();
       renderProgress(0);
       renderLegend();
       initializeMap();

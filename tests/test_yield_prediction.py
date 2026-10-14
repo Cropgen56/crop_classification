@@ -149,3 +149,10 @@ def test_classification_service_includes_yield_and_drought_assessment():
     yp = field_pred["yield_prediction"]
     assert yp["predicted_yield_kg_ha"] > 0.0
     assert yp["damage_category"] == "Severe Crop Failure"
+
+    # Verify each top candidate also has its crop-specific yield prediction
+    assert len(field_pred["top_3_candidates"]) > 0
+    for cand in field_pred["top_3_candidates"]:
+        assert "yield_prediction" in cand
+        assert cand["yield_prediction"]["predicted_yield_kg_ha"] > 0.0
+        assert "yield_deficit_pct" in cand["yield_prediction"]

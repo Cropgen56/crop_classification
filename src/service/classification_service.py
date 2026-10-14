@@ -289,6 +289,15 @@ def classify_village_request(
             field_area_ha=area_ha,
         )
 
+        for candidate in prediction.get("top_3_candidates", []):
+            candidate["yield_prediction"] = predict_field_yield(
+                crop_name=candidate["crop"],
+                district=field_dist,
+                taluka=field_tal,
+                satellite=profile.get("satellite") if profile else None,
+                field_area_ha=area_ha,
+            )
+
     satellite_field_count = len(satellite_profiles)
     if complete_sensor_field_count == len(field_profiles) and complete_sensor_field_count:
         satellite_status = "complete"

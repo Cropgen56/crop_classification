@@ -14,6 +14,7 @@ from starlette.responses import FileResponse, StreamingResponse
 
 from src.rules.field_candidate_generator import classify_field_profile
 from src.service.classification_service import classify_village_request
+from src.yield_engine.trigger1_talukas import get_division_summary, load_trigger1_taluka_registry
 
 
 app = FastAPI(
@@ -79,6 +80,27 @@ class VillageClassificationRequest(BaseModel):
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok", "service": "crop_classifier_api"}
+
+
+@app.get("/drought-talukas")
+def get_drought_talukas() -> dict[str, Any]:
+    return {
+        "talukas": load_trigger1_taluka_registry(),
+        "summary": get_division_summary(),
+        "total_talukas": 265,
+        "state_deficit_pct": -18.8,
+    }
+
+
+@app.get("/sample-geojson")
+def get_sample_geojson() -> dict[str, Any]:
+    sample_path = Path(__file__).resolve().parents[2] / "data" / "polygons" / "sample_10.geojson"
+    if sample_path.exists():
+        try:
+            return json.loads(sample_path.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    return {"type": "FeatureCollection", "features": []}
 
 
 @app.get("/", include_in_schema=False)
